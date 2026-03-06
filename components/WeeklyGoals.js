@@ -398,13 +398,15 @@ const styles = StyleSheet.create({
   subtaskList: {
     paddingLeft: 50,
     paddingRight: 16,
-    paddingBottom: 8,
+    paddingTop: 4,
+    paddingBottom: 12,
+    gap: 4,
     borderBottomWidth: 0.5,
   },
   subtaskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 10,
     gap: 10,
   },
   subtaskCheck: {
