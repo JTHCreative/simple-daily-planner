@@ -39,17 +39,23 @@ export default function TaskItem({ task, groupId, dateKey, onEdit }) {
       ]}
     >
       {/* Checkbox circle positioned on the timeline line */}
-      <View
-        style={[
-          styles.circle,
-          {
-            borderColor: isCompleted ? colors.primary : colors.border,
-            backgroundColor: isCompleted ? colors.primary : colors.bg,
-          },
-        ]}
+      <Pressable
+        onPress={handleTap}
+        style={styles.circleHit}
+        hitSlop={8}
       >
-        {isCompleted && <Text style={styles.checkmark}>✓</Text>}
-      </View>
+        <View
+          style={[
+            styles.circle,
+            {
+              borderColor: isCompleted ? colors.primary : colors.border,
+              backgroundColor: isCompleted ? colors.primary : colors.bg,
+            },
+          ]}
+        >
+          {isCompleted && <Text style={styles.checkmark}>✓</Text>}
+        </View>
+      </Pressable>
 
       <View style={styles.info}>
         <Text
@@ -85,16 +91,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     position: 'relative',
   },
-  circle: {
+  circleHit: {
     position: 'absolute',
-    left: CIRCLE_LEFT,
+    left: CIRCLE_LEFT - 6,
+    width: CIRCLE_SIZE + 12,
+    height: CIRCLE_SIZE + 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  circle: {
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,
     borderRadius: CIRCLE_SIZE / 2,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1,
   },
   checkmark: {
     color: '#fff',
