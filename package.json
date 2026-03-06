@@ -11,9 +11,9 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~54.0.33",
-    "expo-dev-client": "^55.0.11",
+    "expo-dev-client": "~6.0.20",
     "expo-linking": "~8.0.11",
-    "expo-notifications": "^0.32.16",
+    "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
@@ -21,7 +21,7 @@
     "react-native-get-random-values": "~1.11.0",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-svg": "^15.12.1",
+    "react-native-svg": "15.12.1",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
