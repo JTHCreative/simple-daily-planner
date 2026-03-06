@@ -110,7 +110,7 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate })
           />
         </TouchableOpacity>
 
-        <Text style={[styles.label, { color: colors.textSecondary }]}>REPEATS</Text>
+        <Text style={[styles.label, styles.sectionLabel, { color: colors.textSecondary }]}>REPEATS</Text>
         <RecurrencePicker value={recurrence} onChange={setRecurrence} />
 
         <View style={styles.actions}>
@@ -204,5 +204,8 @@ const styles = StyleSheet.create({
   btnText: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  sectionLabel: {
+    marginTop: 12,
   },
 });
