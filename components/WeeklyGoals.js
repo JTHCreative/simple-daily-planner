@@ -126,34 +126,23 @@ export default function WeeklyGoals({ selectedDate }) {
                 >
                   {goal.text}
                 </Text>
-                {hasTasks && (
+                {hasTasks && !isExpanded && (
                   <Text style={[styles.goalMeta, { color: colors.textMuted }]}>
                     {tasksDone}/{tasks.length} tasks
                   </Text>
                 )}
               </View>
-              <View style={styles.goalActions}>
-                <TouchableOpacity
-                  onPress={() => openAddTask(goal)}
-                  style={[styles.addTaskBtn, { backgroundColor: colors.primaryLight }]}
-                  hitSlop={6}
-                >
-                  <Text style={[styles.addTaskBtnText, { color: colors.primary }]}>+</Text>
-                </TouchableOpacity>
-                {hasTasks && (
-                  <View
-                    style={[
-                      styles.chevron,
-                      isExpanded ? styles.chevronUp : styles.chevronDown,
-                      { borderColor: colors.textMuted },
-                    ]}
-                  />
-                )}
-              </View>
+              <View
+                style={[
+                  styles.chevron,
+                  isExpanded ? styles.chevronUp : styles.chevronDown,
+                  { borderColor: colors.textMuted },
+                ]}
+              />
             </Pressable>
 
             {/* Expanded Tasks */}
-            {hasTasks && isExpanded && (
+            {isExpanded && (
               <View style={[styles.taskList, { borderTopColor: colors.border }]}>
                 {tasks.map((task) => {
                   const subtasks = task.subtasks || [];
@@ -277,6 +266,18 @@ export default function WeeklyGoals({ selectedDate }) {
                     </View>
                   );
                 })}
+
+                {/* Add Task button at bottom of expanded section */}
+                <TouchableOpacity
+                  style={[styles.addTaskRow, { borderTopColor: hasTasks ? colors.border : 'transparent' }]}
+                  onPress={() => openAddTask(goal)}
+                  activeOpacity={0.6}
+                >
+                  <View style={[styles.addTaskIcon, { backgroundColor: colors.primaryLight }]}>
+                    <Text style={[styles.addTaskIconText, { color: colors.primary }]}>+</Text>
+                  </View>
+                  <Text style={[styles.addTaskLabel, { color: colors.primary }]}>Add Task</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -386,23 +387,6 @@ const styles = StyleSheet.create({
   goalMeta: {
     fontSize: 12,
   },
-  goalActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  addTaskBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addTaskBtnText: {
-    fontSize: 18,
-    fontWeight: '500',
-    marginTop: -1,
-  },
   // Task list
   taskList: {
     borderTopWidth: 1,
@@ -478,6 +462,31 @@ const styles = StyleSheet.create({
   subtaskName: {
     fontSize: 13,
     flex: 1,
+  },
+  // Add task row
+  addTaskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 0.5,
+    gap: 10,
+  },
+  addTaskIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addTaskIconText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: -1,
+  },
+  addTaskLabel: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   // Shared
   chevron: {
