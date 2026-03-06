@@ -152,6 +152,20 @@ export default function Timeline({ selectedDate }) {
                 />
               </View>
             )}
+
+            {/* Fade-out tail on last group */}
+            {isLast && (
+              <View style={[styles.tailWrap, { left: LINE_OFFSET }]}>
+                <View style={[styles.tailSegment, { backgroundColor: colors.primary, opacity: 0.6 }]} />
+                <View style={[styles.tailSegment, { backgroundColor: colors.primary, opacity: 0.35 }]} />
+                <View style={[styles.tailSegment, { backgroundColor: colors.primary, opacity: 0.15 }]} />
+                <View style={styles.dotsRow}>
+                  <View style={[styles.dot, { backgroundColor: colors.primary, opacity: 0.4 }]} />
+                  <View style={[styles.dot, { backgroundColor: colors.primary, opacity: 0.25 }]} />
+                  <View style={[styles.dot, { backgroundColor: colors.primary, opacity: 0.12 }]} />
+                </View>
+              </View>
+            )}
           </View>
         );
       })}
@@ -289,6 +303,27 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 2,
     marginLeft: -1,
+  },
+  tailWrap: {
+    position: 'relative',
+    alignItems: 'center',
+    marginLeft: -1,
+    paddingTop: 2,
+  },
+  tailSegment: {
+    width: 2,
+    height: 8,
+    marginBottom: 2,
+  },
+  dotsRow: {
+    alignItems: 'center',
+    gap: 4,
+    paddingTop: 2,
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
   addGroupBtn: {
     alignSelf: 'center',
