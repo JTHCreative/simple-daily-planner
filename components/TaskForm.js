@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
 import { usePlanner } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
@@ -76,8 +76,7 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
 
   return (
     <BottomSheet visible={visible} onClose={onClose} title={editTask ? 'Edit Task' : 'New Task'}>
-      <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.form}>
+      <View style={styles.form}>
           {(groupName || selectedDate) && (
             <View style={[styles.context, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               {groupName && (
@@ -180,16 +179,12 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </ScrollView>
+      </View>
     </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    maxHeight: 480,
-  },
   form: {
     gap: 12,
     paddingBottom: 32,

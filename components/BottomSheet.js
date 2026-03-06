@@ -18,7 +18,7 @@ export default function BottomSheet({ visible, onClose, title, children }) {
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior="padding"
           style={styles.flex}
         >
           <View style={styles.header}>
