@@ -1,5 +1,14 @@
-import { useState, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, PanResponder, Animated, StyleSheet } from 'react-native';
+import { useState, useRef, useMemo, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Pressable,
+  PanResponder,
+  Animated,
+  Vibration,
+  StyleSheet,
+} from 'react-native';
 import BottomSheet from './BottomSheet';
 import { getIconById } from '../utils/icons';
 import { usePlanner } from '../context/PlannerContext';
@@ -15,7 +24,9 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
   const [localOrder, setLocalOrder] = useState(null);
   const dragY = useRef(new Animated.Value(0)).current;
   const dragStartY = useRef(0);
-  const currentIndex = useRef(-1);
+  const originalIndex = useRef(-1);
+  const currentSlot = useRef(-1);
+  const isDragging = useRef(false);
 
   const visibleGroups = state.groups.filter((g) =>
     shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)
@@ -23,112 +34,110 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
 
   const displayGroups = localOrder || visibleGroups;
 
-  const commitReorder = useCallback((newVisible) => {
-    const visibleIds = newVisible.map((g) => g.id);
-    const visibleSet = new Set(visibleIds);
-    const reordered = [];
-    let visIdx = 0;
+  const applyReorder = useCallback(
+    (newVisible) => {
+      const visibleIds = newVisible.map((g) => g.id);
+      const visibleSet = new Set(visibleIds);
+      const reordered = [];
+      let visIdx = 0;
 
-    for (const g of state.groups) {
-      if (visibleSet.has(g.id)) {
-        reordered.push(newVisible[visIdx]);
-        visIdx++;
-      } else {
-        reordered.push(g);
+      for (const g of state.groups) {
+        if (visibleSet.has(g.id)) {
+          reordered.push(newVisible[visIdx]);
+          visIdx++;
+        } else {
+          reordered.push(g);
+        }
       }
-    }
 
-    dispatch({ type: 'REORDER_GROUPS', payload: reordered });
-  }, [state.groups, dispatch]);
+      dispatch({ type: 'REORDER_GROUPS', payload: reordered });
+    },
+    [state.groups, dispatch]
+  );
 
   const moveGroup = (fromIndex, toIndex) => {
     if (toIndex < 0 || toIndex >= visibleGroups.length) return;
 
-    const visibleIds = visibleGroups.map((g) => g.id);
-    const [movedId] = visibleIds.splice(fromIndex, 1);
-    visibleIds.splice(toIndex, 0, movedId);
-
-    const visibleSet = new Set(visibleIds);
-    const reordered = [];
-    let visIdx = 0;
-
-    for (const g of state.groups) {
-      if (visibleSet.has(g.id)) {
-        reordered.push(state.groups.find((sg) => sg.id === visibleIds[visIdx]));
-        visIdx++;
-      } else {
-        reordered.push(g);
-      }
-    }
-
-    dispatch({ type: 'REORDER_GROUPS', payload: reordered });
+    const newOrder = [...visibleGroups];
+    const [moved] = newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, moved);
+    applyReorder(newOrder);
   };
 
-  const startDrag = (index, gestureY) => {
+  // Container-level PanResponder that only activates when isDragging is true
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => isDragging.current,
+        onMoveShouldSetPanResponder: () => isDragging.current,
+        onPanResponderMove: (_, gesture) => {
+          if (!isDragging.current) return;
+          const dy = gesture.moveY - dragStartY.current;
+          dragY.setValue(dy);
+
+          const from = originalIndex.current;
+          const offset = Math.round(dy / ROW_HEIGHT);
+          const newSlot = Math.max(
+            0,
+            Math.min(visibleGroups.length - 1, from + offset)
+          );
+
+          if (newSlot !== currentSlot.current) {
+            currentSlot.current = newSlot;
+            const newOrder = [...visibleGroups];
+            const [moved] = newOrder.splice(from, 1);
+            newOrder.splice(newSlot, 0, moved);
+            setLocalOrder(newOrder);
+          }
+        },
+        onPanResponderRelease: () => {
+          if (!isDragging.current) return;
+          isDragging.current = false;
+          if (localOrder) {
+            applyReorder(localOrder);
+          }
+          setDraggingIndex(-1);
+          setLocalOrder(null);
+          dragY.setValue(0);
+        },
+        onPanResponderTerminate: () => {
+          isDragging.current = false;
+          setDraggingIndex(-1);
+          setLocalOrder(null);
+          dragY.setValue(0);
+        },
+      }),
+    [visibleGroups, localOrder, applyReorder, dragY]
+  );
+
+  const handleLongPress = (index, pageY) => {
+    isDragging.current = true;
+    originalIndex.current = index;
+    currentSlot.current = index;
+    dragStartY.current = pageY;
+    dragY.setValue(0);
     setDraggingIndex(index);
-    currentIndex.current = index;
-    dragStartY.current = gestureY;
-    dragY.setValue(0);
     setLocalOrder([...visibleGroups]);
-  };
-
-  const updateDrag = (gestureY) => {
-    const dy = gestureY - dragStartY.current;
-    dragY.setValue(dy);
-
-    const fromIndex = draggingIndex;
-    const offset = Math.round(dy / ROW_HEIGHT);
-    const newIndex = Math.max(0, Math.min(visibleGroups.length - 1, fromIndex + offset));
-
-    if (newIndex !== currentIndex.current) {
-      currentIndex.current = newIndex;
-      const newOrder = [...visibleGroups];
-      const [moved] = newOrder.splice(fromIndex, 1);
-      newOrder.splice(newIndex, 0, moved);
-      setLocalOrder(newOrder);
-    }
-  };
-
-  const endDrag = () => {
-    if (localOrder) {
-      commitReorder(localOrder);
-    }
-    setDraggingIndex(-1);
-    setLocalOrder(null);
-    dragY.setValue(0);
+    Vibration.vibrate(30);
   };
 
   return (
     <BottomSheet visible={visible} onClose={onClose} title="Arrange Groups">
-      <View style={styles.container}>
+      <View style={styles.container} {...panResponder.panHandlers}>
         <Text style={[styles.hint, { color: colors.textMuted }]}>
-          Long press and drag to reorder, or use the arrows. Daily groups are reordered for all days.
+          Long press and drag to reorder, or use the arrows.{'\n'}Daily groups
+          are reordered for all days.
         </Text>
 
         <View style={{ minHeight: displayGroups.length * ROW_HEIGHT }}>
           {displayGroups.map((group, index) => {
             const icon = getIconById(group.icon);
             const isDaily = group.recurrence?.type === 'daily';
-            const isDragged = draggingIndex >= 0 && group.id === visibleGroups[draggingIndex]?.id;
+            const isDraggedItem =
+              draggingIndex >= 0 &&
+              group.id === visibleGroups[draggingIndex]?.id;
 
-            const panResponder = PanResponder.create({
-              onStartShouldSetPanResponder: () => false,
-              onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
-              onPanResponderGrant: (_, g) => {
-                startDrag(index, g.moveY);
-              },
-              onPanResponderMove: (_, g) => {
-                updateDrag(g.moveY);
-              },
-              onPanResponderRelease: () => {
-                endDrag();
-              },
-              onPanResponderTerminate: () => {
-                endDrag();
-              },
-            });
-
-            const rowStyle = isDragged
+            const rowStyle = isDraggedItem
               ? [
                   styles.row,
                   styles.rowDragging,
@@ -138,31 +147,62 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
                     shadowColor: colors.primary,
                   },
                 ]
-              : [styles.row, { backgroundColor: colors.surface, borderColor: colors.border }];
+              : [
+                  styles.row,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ];
 
             return (
               <Animated.View
                 key={group.id}
                 style={[
                   styles.rowWrap,
-                  isDragged && {
+                  isDraggedItem && {
                     zIndex: 999,
                     transform: [{ translateY: dragY }],
                   },
                 ]}
-                {...panResponder.panHandlers}
               >
-                <View style={rowStyle}>
+                <Pressable
+                  style={rowStyle}
+                  onLongPress={(e) =>
+                    handleLongPress(index, e.nativeEvent.pageY)
+                  }
+                  delayLongPress={200}
+                >
                   <View style={styles.dragHandle}>
-                    <View style={[styles.handleBar, { backgroundColor: colors.textMuted }]} />
-                    <View style={[styles.handleBar, { backgroundColor: colors.textMuted }]} />
-                    <View style={[styles.handleBar, { backgroundColor: colors.textMuted }]} />
+                    <View
+                      style={[
+                        styles.handleBar,
+                        { backgroundColor: colors.textMuted },
+                      ]}
+                    />
+                    <View
+                      style={[
+                        styles.handleBar,
+                        { backgroundColor: colors.textMuted },
+                      ]}
+                    />
+                    <View
+                      style={[
+                        styles.handleBar,
+                        { backgroundColor: colors.textMuted },
+                      ]}
+                    />
                   </View>
-                  <View style={[styles.rowIcon, { backgroundColor: colors.primaryLight }]}>
+                  <View
+                    style={[
+                      styles.rowIcon,
+                      { backgroundColor: colors.primaryLight },
+                    ]}
+                  >
                     <Text style={styles.rowEmoji}>{icon.emoji}</Text>
                   </View>
                   <View style={styles.rowInfo}>
-                    <Text style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>
+                    <Text
+                      style={[styles.rowName, { color: colors.text }]}
+                      numberOfLines={1}
+                    >
                       {group.name}
                     </Text>
                     <Text style={[styles.rowBadge, { color: colors.textMuted }]}>
@@ -173,19 +213,40 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
                     <TouchableOpacity
                       onPress={() => moveGroup(index, index - 1)}
                       disabled={index === 0 || draggingIndex >= 0}
-                      style={[styles.arrowBtn, index === 0 && { opacity: 0.25 }]}
+                      style={[
+                        styles.arrowBtn,
+                        index === 0 && { opacity: 0.25 },
+                      ]}
                     >
-                      <View style={[styles.chevron, styles.chevronUp, { borderColor: colors.text }]} />
+                      <View
+                        style={[
+                          styles.chevron,
+                          styles.chevronUp,
+                          { borderColor: colors.text },
+                        ]}
+                      />
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => moveGroup(index, index + 1)}
-                      disabled={index === displayGroups.length - 1 || draggingIndex >= 0}
-                      style={[styles.arrowBtn, index === displayGroups.length - 1 && { opacity: 0.25 }]}
+                      disabled={
+                        index === displayGroups.length - 1 ||
+                        draggingIndex >= 0
+                      }
+                      style={[
+                        styles.arrowBtn,
+                        index === displayGroups.length - 1 && { opacity: 0.25 },
+                      ]}
                     >
-                      <View style={[styles.chevron, styles.chevronDown, { borderColor: colors.text }]} />
+                      <View
+                        style={[
+                          styles.chevron,
+                          styles.chevronDown,
+                          { borderColor: colors.text },
+                        ]}
+                      />
                     </TouchableOpacity>
                   </View>
-                </View>
+                </Pressable>
               </Animated.View>
             );
           })}
