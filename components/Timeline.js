@@ -21,6 +21,7 @@ export default function Timeline({ selectedDate }) {
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [activeGroupName, setActiveGroupName] = useState('');
+  const [activeGroupRecurrence, setActiveGroupRecurrence] = useState(null);
   const [editTask, setEditTask] = useState(null);
   const [arrangeOpen, setArrangeOpen] = useState(false);
   const [subtaskFormOpen, setSubtaskFormOpen] = useState(false);
@@ -34,16 +35,18 @@ export default function Timeline({ selectedDate }) {
     shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)
   );
 
-  const openAddTask = (groupId, groupName) => {
+  const openAddTask = (groupId, groupName, groupRecurrence) => {
     setActiveGroupId(groupId);
     setActiveGroupName(groupName);
+    setActiveGroupRecurrence(groupRecurrence);
     setEditTask(null);
     setTaskFormOpen(true);
   };
 
-  const openEditTask = (groupId, groupName, task) => {
+  const openEditTask = (groupId, groupName, task, groupRecurrence) => {
     setActiveGroupId(groupId);
     setActiveGroupName(groupName);
+    setActiveGroupRecurrence(groupRecurrence);
     setEditTask(task);
     setTaskFormOpen(true);
   };
@@ -80,7 +83,15 @@ export default function Timeline({ selectedDate }) {
 
       {visibleGroups.map((group, index) => {
         const icon = getIconById(group.icon);
-        const visibleTasks = group.tasks;
+        const isGroupDaily = group.recurrence?.type === 'daily';
+        const visibleTasks = isGroupDaily
+          ? group.tasks.filter((t) => {
+              // Tasks default to 'daily' (inherit group recurrence)
+              if (!t.recurrence || t.recurrence === 'daily') return true;
+              // One-off tasks only show on their created date
+              return t.createdDate === dateKey;
+            })
+          : group.tasks;
         const isLast = index === visibleGroups.length - 1;
 
         return (
@@ -110,7 +121,7 @@ export default function Timeline({ selectedDate }) {
               </View>
               <TouchableOpacity
                 style={[styles.addTaskBtn, { backgroundColor: colors.primary }]}
-                onPress={() => openAddTask(group.id, group.name)}
+                onPress={() => openAddTask(group.id, group.name, group.recurrence)}
               >
                 <Text style={styles.addTaskPlus}>+</Text>
               </TouchableOpacity>
@@ -137,14 +148,14 @@ export default function Timeline({ selectedDate }) {
                     task={task}
                     groupId={group.id}
                     dateKey={dateKey}
-                    onEdit={(t) => openEditTask(group.id, group.name, t)}
+                    onEdit={(t) => openEditTask(group.id, group.name, t, group.recurrence)}
                     onEditSubtask={(t, st) => openEditSubtask(group.id, t, st)}
                   />
                 ))}
                 {visibleTasks.length === 0 && (
                   <TouchableOpacity
                     style={[styles.addFirstTask, { borderColor: colors.border }]}
-                    onPress={() => openAddTask(group.id, group.name)}
+                    onPress={() => openAddTask(group.id, group.name, group.recurrence)}
                   >
                     <Text style={[styles.addFirstText, { color: colors.textMuted }]}>+ Add a task</Text>
                   </TouchableOpacity>
@@ -197,6 +208,7 @@ export default function Timeline({ selectedDate }) {
         onClose={() => setTaskFormOpen(false)}
         groupId={activeGroupId}
         groupName={activeGroupName}
+        groupRecurrence={activeGroupRecurrence}
         editTask={editTask}
         selectedDate={selectedDate}
       />

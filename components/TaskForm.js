@@ -12,23 +12,28 @@ function formatDate(date) {
   return `${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 }
 
-export default function TaskForm({ visible, onClose, groupId, groupName, editTask, selectedDate }) {
+export default function TaskForm({ visible, onClose, groupId, groupName, editTask, selectedDate, groupRecurrence }) {
   const colors = useTheme();
   const { dispatch } = usePlanner();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtask, setNewSubtask] = useState('');
+  const [taskRecurrence, setTaskRecurrence] = useState('daily');
+
+  const isGroupDaily = groupRecurrence?.type === 'daily';
 
   useEffect(() => {
     if (editTask) {
       setName(editTask.name);
       setDescription(editTask.description || '');
       setSubtasks(editTask.subtasks || []);
+      setTaskRecurrence(editTask.recurrence || 'daily');
     } else {
       setName('');
       setDescription('');
       setSubtasks([]);
+      setTaskRecurrence('daily');
     }
     setNewSubtask('');
   }, [editTask, visible]);
@@ -46,13 +51,14 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
 
   const handleSubmit = () => {
     if (!name.trim()) return;
+    const recurrence = isGroupDaily ? taskRecurrence : 'daily';
     if (editTask) {
       dispatch({
         type: 'UPDATE_TASK',
         payload: {
           groupId,
           taskId: editTask.id,
-          updates: { name: name.trim(), description: description.trim(), subtasks },
+          updates: { name: name.trim(), description: description.trim(), subtasks, recurrence },
         },
       });
     } else {
@@ -61,7 +67,7 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
         : new Date().toISOString().split('T')[0];
       dispatch({
         type: 'ADD_TASK',
-        payload: { groupId, name: name.trim(), description: description.trim(), subtasks, createdDate },
+        payload: { groupId, name: name.trim(), description: description.trim(), subtasks, createdDate, recurrence },
       });
     }
     onClose();
@@ -120,6 +126,51 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
             placeholderTextColor={colors.textMuted}
             multiline
           />
+
+          {isGroupDaily && (
+            <>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>RECURRENCE</Text>
+              <View style={[styles.recurrenceRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <TouchableOpacity
+                  style={[
+                    styles.recurrenceOption,
+                    taskRecurrence === 'daily' && { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() => setTaskRecurrence('daily')}
+                >
+                  <Text
+                    style={[
+                      styles.recurrenceText,
+                      { color: taskRecurrence === 'daily' ? '#fff' : colors.text },
+                    ]}
+                  >
+                    Repeats Daily
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.recurrenceOption,
+                    taskRecurrence === 'once' && { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() => setTaskRecurrence('once')}
+                >
+                  <Text
+                    style={[
+                      styles.recurrenceText,
+                      { color: taskRecurrence === 'once' ? '#fff' : colors.text },
+                    ]}
+                  >
+                    One-off
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.recurrenceHint, { color: colors.textMuted }]}>
+                {taskRecurrence === 'daily'
+                  ? 'This task will appear every day with the group'
+                  : `This task will only appear on ${formatDate(selectedDate)}`}
+              </Text>
+            </>
+          )}
 
           <Text style={[styles.label, { color: colors.textSecondary }]}>SUB-TASKS</Text>
 
@@ -227,6 +278,26 @@ const styles = StyleSheet.create({
   contextValue: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  recurrenceRow: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+  },
+  recurrenceOption: {
+    flex: 1,
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recurrenceText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  recurrenceHint: {
+    fontSize: 12,
+    marginTop: -4,
   },
   subtaskRow: {
     flexDirection: 'row',

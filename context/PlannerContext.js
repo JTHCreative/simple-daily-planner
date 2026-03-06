@@ -56,6 +56,7 @@ function reducer(state, action) {
         description: action.payload.description || '',
         subtasks: action.payload.subtasks || [],
         createdDate: action.payload.createdDate || new Date().toISOString().split('T')[0],
+        recurrence: action.payload.recurrence || 'daily',
       };
       const groups = state.groups.map((g) =>
         g.id === action.payload.groupId ? { ...g, tasks: [...g.tasks, task] } : g
