@@ -103,15 +103,35 @@ function reducer(state, action) {
         id: uuid(),
         text: action.payload.text,
         weekKey: action.payload.weekKey,
+        subtasks: action.payload.subtasks || [],
         completed: false,
       };
       return { ...state, weeklyGoals: [...state.weeklyGoals, goal] };
+    }
+
+    case 'UPDATE_WEEKLY_GOAL': {
+      const weeklyGoals = state.weeklyGoals.map((g) =>
+        g.id === action.payload.id ? { ...g, ...action.payload.updates } : g
+      );
+      return { ...state, weeklyGoals };
     }
 
     case 'TOGGLE_WEEKLY_GOAL': {
       const weeklyGoals = state.weeklyGoals.map((g) =>
         g.id === action.payload ? { ...g, completed: !g.completed } : g
       );
+      return { ...state, weeklyGoals };
+    }
+
+    case 'TOGGLE_GOAL_SUBTASK': {
+      const { goalId, subtaskId } = action.payload;
+      const weeklyGoals = state.weeklyGoals.map((g) => {
+        if (g.id !== goalId) return g;
+        const subtasks = (g.subtasks || []).map((st) =>
+          st.id === subtaskId ? { ...st, completed: !st.completed } : st
+        );
+        return { ...g, subtasks };
+      });
       return { ...state, weeklyGoals };
     }
 
