@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
 import { usePlanner } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
+import { requestNotificationPermissions } from '../utils/notifications';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -20,6 +21,9 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtask, setNewSubtask] = useState('');
   const [taskRecurrence, setTaskRecurrence] = useState('daily');
+  const [alarmEnabled, setAlarmEnabled] = useState(false);
+  const [alarmHour, setAlarmHour] = useState(8);
+  const [alarmMinute, setAlarmMinute] = useState(0);
 
   const isGroupDaily = groupRecurrence?.type === 'daily';
 
@@ -29,14 +33,42 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
       setDescription(editTask.description || '');
       setSubtasks(editTask.subtasks || []);
       setTaskRecurrence(editTask.recurrence || 'daily');
+      setAlarmEnabled(editTask.alarm?.enabled || false);
+      setAlarmHour(editTask.alarm?.hour ?? 8);
+      setAlarmMinute(editTask.alarm?.minute ?? 0);
     } else {
       setName('');
       setDescription('');
       setSubtasks([]);
       setTaskRecurrence('daily');
+      setAlarmEnabled(false);
+      setAlarmHour(8);
+      setAlarmMinute(0);
     }
     setNewSubtask('');
   }, [editTask, visible]);
+
+  const handleAlarmToggle = async (value) => {
+    if (value) {
+      const granted = await requestNotificationPermissions();
+      if (!granted) return;
+    }
+    setAlarmEnabled(value);
+  };
+
+  const adjustTime = (field, delta) => {
+    if (field === 'hour') {
+      setAlarmHour((prev) => ((prev + delta + 24) % 24));
+    } else {
+      setAlarmMinute((prev) => ((prev + delta + 60) % 60));
+    }
+  };
+
+  const formatTimeDisplay = (h, m) => {
+    const period = h >= 12 ? 'PM' : 'AM';
+    const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${displayH}:${m.toString().padStart(2, '0')} ${period}`;
+  };
 
   const addSubtask = () => {
     const text = newSubtask.trim();
@@ -52,13 +84,14 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
   const handleSubmit = () => {
     if (!name.trim()) return;
     const recurrence = isGroupDaily ? taskRecurrence : 'daily';
+    const alarm = { enabled: alarmEnabled, hour: alarmHour, minute: alarmMinute };
     if (editTask) {
       dispatch({
         type: 'UPDATE_TASK',
         payload: {
           groupId,
           taskId: editTask.id,
-          updates: { name: name.trim(), description: description.trim(), subtasks, recurrence },
+          updates: { name: name.trim(), description: description.trim(), subtasks, recurrence, alarm },
         },
       });
     } else {
@@ -67,7 +100,7 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
         : new Date().toISOString().split('T')[0];
       dispatch({
         type: 'ADD_TASK',
-        payload: { groupId, name: name.trim(), description: description.trim(), subtasks, createdDate, recurrence },
+        payload: { groupId, name: name.trim(), description: description.trim(), subtasks, createdDate, recurrence, alarm },
       });
     }
     onClose();
@@ -170,6 +203,55 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
                   : `This task will only appear on ${formatDate(selectedDate)}`}
               </Text>
             </>
+          )}
+
+          <Text style={[styles.label, { color: colors.textSecondary }]}>ALARM</Text>
+          <View style={[styles.alarmRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.alarmLabel, { color: colors.text }]}>Enable Alarm</Text>
+            <Switch
+              value={alarmEnabled}
+              onValueChange={handleAlarmToggle}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={alarmEnabled ? colors.primary : colors.textMuted}
+            />
+          </View>
+          {alarmEnabled && (
+            <View style={[styles.timePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.timeLabel, { color: colors.textMuted }]}>Reminder at</Text>
+              <View style={styles.timeControls}>
+                <View style={styles.timeUnit}>
+                  <TouchableOpacity onPress={() => adjustTime('hour', 1)} style={styles.timeBtn} hitSlop={6}>
+                    <Text style={[styles.timeArrow, { color: colors.primary }]}>▲</Text>
+                  </TouchableOpacity>
+                  <Text style={[styles.timeValue, { color: colors.text }]}>
+                    {(alarmHour === 0 ? 12 : alarmHour > 12 ? alarmHour - 12 : alarmHour).toString().padStart(2, '0')}
+                  </Text>
+                  <TouchableOpacity onPress={() => adjustTime('hour', -1)} style={styles.timeBtn} hitSlop={6}>
+                    <Text style={[styles.timeArrow, { color: colors.primary }]}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.timeSeparator, { color: colors.text }]}>:</Text>
+                <View style={styles.timeUnit}>
+                  <TouchableOpacity onPress={() => adjustTime('minute', 5)} style={styles.timeBtn} hitSlop={6}>
+                    <Text style={[styles.timeArrow, { color: colors.primary }]}>▲</Text>
+                  </TouchableOpacity>
+                  <Text style={[styles.timeValue, { color: colors.text }]}>
+                    {alarmMinute.toString().padStart(2, '0')}
+                  </Text>
+                  <TouchableOpacity onPress={() => adjustTime('minute', -5)} style={styles.timeBtn} hitSlop={6}>
+                    <Text style={[styles.timeArrow, { color: colors.primary }]}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  style={[styles.periodBtn, { backgroundColor: colors.primaryLight }]}
+                  onPress={() => setAlarmHour((prev) => (prev + 12) % 24)}
+                >
+                  <Text style={[styles.periodText, { color: colors.primary }]}>
+                    {alarmHour >= 12 ? 'PM' : 'AM'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
 
           <Text style={[styles.label, { color: colors.textSecondary }]}>SUB-TASKS</Text>
@@ -340,6 +422,68 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '500',
     marginTop: -1,
+  },
+  alarmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  alarmLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  timePicker: {
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    gap: 8,
+  },
+  timeLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  timeControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timeUnit: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  timeBtn: {
+    padding: 4,
+  },
+  timeArrow: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  timeValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    minWidth: 44,
+    textAlign: 'center',
+  },
+  timeSeparator: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  periodBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  periodText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   actions: {
     flexDirection: 'row',

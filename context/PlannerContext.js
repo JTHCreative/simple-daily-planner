@@ -2,6 +2,7 @@ import 'react-native-get-random-values';
 import { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { loadData, saveData } from '../utils/storage';
 import { v4 as uuid } from 'uuid';
+import { scheduleTaskAlarm, cancelTaskAlarm } from '../utils/notifications';
 
 const PlannerContext = createContext();
 
@@ -42,6 +43,13 @@ function reducer(state, action) {
     }
 
     case 'DELETE_GROUP': {
+      // Cancel alarms for all tasks in the deleted group
+      const deletedGroup = state.groups.find((g) => g.id === action.payload);
+      if (deletedGroup) {
+        deletedGroup.tasks.forEach((t) => {
+          if (t.alarm?.enabled) cancelTaskAlarm(t.id);
+        });
+      }
       const groups = state.groups.filter((g) => g.id !== action.payload);
       return { ...state, groups };
     }
@@ -50,14 +58,20 @@ function reducer(state, action) {
       return { ...state, groups: action.payload };
 
     case 'ADD_TASK': {
+      const taskId = uuid();
+      const alarm = action.payload.alarm || { enabled: false, hour: 8, minute: 0 };
       const task = {
-        id: uuid(),
+        id: taskId,
         name: action.payload.name,
         description: action.payload.description || '',
         subtasks: action.payload.subtasks || [],
         createdDate: action.payload.createdDate || new Date().toISOString().split('T')[0],
         recurrence: action.payload.recurrence || 'daily',
+        alarm,
       };
+      if (alarm.enabled) {
+        scheduleTaskAlarm(taskId, task.name, alarm.hour, alarm.minute);
+      }
       const groups = state.groups.map((g) =>
         g.id === action.payload.groupId ? { ...g, tasks: [...g.tasks, task] } : g
       );
@@ -65,12 +79,23 @@ function reducer(state, action) {
     }
 
     case 'UPDATE_TASK': {
+      const { updates, taskId: updateTaskId } = action.payload;
+      if (updates.alarm) {
+        if (updates.alarm.enabled) {
+          const taskName = updates.name || state.groups
+            .flatMap((g) => g.tasks)
+            .find((t) => t.id === updateTaskId)?.name || 'Task';
+          scheduleTaskAlarm(updateTaskId, taskName, updates.alarm.hour, updates.alarm.minute);
+        } else {
+          cancelTaskAlarm(updateTaskId);
+        }
+      }
       const groups = state.groups.map((g) =>
         g.id === action.payload.groupId
           ? {
               ...g,
               tasks: g.tasks.map((t) =>
-                t.id === action.payload.taskId ? { ...t, ...action.payload.updates } : t
+                t.id === updateTaskId ? { ...t, ...updates } : t
               ),
             }
           : g
@@ -93,6 +118,13 @@ function reducer(state, action) {
     }
 
     case 'DELETE_TASK': {
+      // Cancel alarm if the deleted task had one
+      const deletedTask = state.groups
+        .find((g) => g.id === action.payload.groupId)
+        ?.tasks.find((t) => t.id === action.payload.taskId);
+      if (deletedTask?.alarm?.enabled) {
+        cancelTaskAlarm(action.payload.taskId);
+      }
       const groups = state.groups.map((g) =>
         g.id === action.payload.groupId
           ? { ...g, tasks: g.tasks.filter((t) => t.id !== action.payload.taskId) }

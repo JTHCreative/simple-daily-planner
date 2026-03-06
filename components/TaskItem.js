@@ -70,17 +70,23 @@ export default function TaskItem({ task, groupId, dateKey, onEdit, onEditSubtask
         </Pressable>
 
         <View style={styles.info}>
-          <Text
-            style={[
-              styles.name,
-              {
-                color: isCompleted ? colors.textSecondary : colors.text,
-                textDecorationLine: isCompleted ? 'line-through' : 'none',
-              },
-            ]}
-          >
-            {task.name}
-          </Text>
+          <View style={styles.nameRow}>
+            <Text
+              style={[
+                styles.name,
+                {
+                  color: isCompleted ? colors.textSecondary : colors.text,
+                  textDecorationLine: isCompleted ? 'line-through' : 'none',
+                  flex: 1,
+                },
+              ]}
+            >
+              {task.name}
+            </Text>
+            {task.alarm?.enabled && (
+              <Text style={[styles.bellIcon, { color: colors.primary }]}>🔔</Text>
+            )}
+          </View>
           {task.description ? (
             <Text style={[styles.description, { color: colors.textMuted }]} numberOfLines={2}>
               {task.description}
@@ -192,8 +198,16 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   name: {
     fontSize: 15,
+  },
+  bellIcon: {
+    fontSize: 12,
   },
   description: {
     fontSize: 12,
