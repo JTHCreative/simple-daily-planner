@@ -40,7 +40,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <DateHeader selectedDate={selectedDate} onDateChange={setSelectedDate} />
+      <DateHeader selectedDate={selectedDate} onDateChange={setSelectedDate} mode={view === 'goals' ? 'weekly' : 'daily'} />
 
       <ScrollView
         style={styles.scroll}

@@ -22,5 +22,10 @@ export const ICON_OPTIONS = [
 ];
 
 export function getIconById(id) {
-  return ICON_OPTIONS.find((i) => i.id === id) || ICON_OPTIONS[0];
+  // Match by preset ID
+  const preset = ICON_OPTIONS.find((i) => i.id === id);
+  if (preset) return preset;
+  // If it's a raw emoji string (user-selected), return it directly
+  if (id && typeof id === 'string') return { id, emoji: id, label: '' };
+  return ICON_OPTIONS[0];
 }

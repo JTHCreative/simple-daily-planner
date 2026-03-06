@@ -6,7 +6,27 @@ import CalendarModal from './CalendarModal';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-export default function DateHeader({ selectedDate, onDateChange }) {
+function getWeekRange(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const start = new Date(d);
+  start.setDate(d.getDate() - day);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { start, end };
+}
+
+function formatWeekRange(date) {
+  const { start, end } = getWeekRange(date);
+  const sMonth = MONTHS[start.getMonth()];
+  const eMonth = MONTHS[end.getMonth()];
+  if (start.getMonth() === end.getMonth()) {
+    return `Week of ${sMonth} ${start.getDate()}-${end.getDate()}`;
+  }
+  return `Week of ${sMonth} ${start.getDate()} - ${eMonth} ${end.getDate()}`;
+}
+
+export default function DateHeader({ selectedDate, onDateChange, mode = 'daily' }) {
   const colors = useTheme();
   const [calendarOpen, setCalendarOpen] = useState(false);
 
@@ -14,15 +34,17 @@ export default function DateHeader({ selectedDate, onDateChange }) {
   today.setHours(0, 0, 0, 0);
   const isToday = selectedDate.toDateString() === today.toDateString();
 
+  const isWeekly = mode === 'weekly';
+
   const goBack = () => {
     const d = new Date(selectedDate);
-    d.setDate(d.getDate() - 1);
+    d.setDate(d.getDate() - (isWeekly ? 7 : 1));
     onDateChange(d);
   };
 
   const goForward = () => {
     const d = new Date(selectedDate);
-    d.setDate(d.getDate() + 1);
+    d.setDate(d.getDate() + (isWeekly ? 7 : 1));
     onDateChange(d);
   };
 
@@ -36,13 +58,21 @@ export default function DateHeader({ selectedDate, onDateChange }) {
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => setCalendarOpen(true)} style={styles.center}>
-        <Text style={[styles.dayName, { color: colors.text }]}>
-          {DAYS[selectedDate.getDay()]}
-        </Text>
-        <Text style={[styles.dateFull, { color: colors.textSecondary }]}>
-          {MONTHS[selectedDate.getMonth()]} {selectedDate.getDate()}, {selectedDate.getFullYear()}
-        </Text>
-        {isToday && (
+        {isWeekly ? (
+          <Text style={[styles.weekLabel, { color: colors.text }]}>
+            {formatWeekRange(selectedDate)}
+          </Text>
+        ) : (
+          <>
+            <Text style={[styles.dayName, { color: colors.text }]}>
+              {DAYS[selectedDate.getDay()]}
+            </Text>
+            <Text style={[styles.dateFull, { color: colors.textSecondary }]}>
+              {MONTHS[selectedDate.getMonth()]} {selectedDate.getDate()}, {selectedDate.getFullYear()}
+            </Text>
+          </>
+        )}
+        {isToday && !isWeekly && (
           <View style={[styles.todayBadge, { backgroundColor: colors.primaryLight }]}>
             <Text style={[styles.todayText, { color: colors.primary }]}>TODAY</Text>
           </View>
@@ -98,6 +128,10 @@ const styles = StyleSheet.create({
   },
   center: {
     alignItems: 'center',
+  },
+  weekLabel: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   dayName: {
     fontSize: 18,
