@@ -15,13 +15,13 @@ import { usePlanner } from '../context/PlannerContext';
 import { shouldShowOnDate } from '../utils/recurrence';
 import { useTheme } from '../utils/theme';
 
-const ROW_HEIGHT = 72; // row height + gap
+const ROW_HEIGHT = 72;
 
 export default function GroupArrange({ visible, onClose, selectedDate }) {
   const colors = useTheme();
   const { state, dispatch } = usePlanner();
   const [draggingIndex, setDraggingIndex] = useState(-1);
-  const [localOrder, setLocalOrder] = useState(null);
+  const [targetSlot, setTargetSlot] = useState(-1);
   const dragY = useRef(new Animated.Value(0)).current;
   const dragStartY = useRef(0);
   const originalIndex = useRef(-1);
@@ -32,18 +32,21 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
     shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)
   );
 
-  const displayGroups = localOrder || visibleGroups;
-
   const applyReorder = useCallback(
-    (newVisible) => {
-      const visibleIds = newVisible.map((g) => g.id);
+    (fromIndex, toIndex) => {
+      if (fromIndex === toIndex) return;
+      const newOrder = [...visibleGroups];
+      const [moved] = newOrder.splice(fromIndex, 1);
+      newOrder.splice(toIndex, 0, moved);
+
+      const visibleIds = newOrder.map((g) => g.id);
       const visibleSet = new Set(visibleIds);
       const reordered = [];
       let visIdx = 0;
 
       for (const g of state.groups) {
         if (visibleSet.has(g.id)) {
-          reordered.push(newVisible[visIdx]);
+          reordered.push(newOrder[visIdx]);
           visIdx++;
         } else {
           reordered.push(g);
@@ -52,19 +55,32 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
 
       dispatch({ type: 'REORDER_GROUPS', payload: reordered });
     },
-    [state.groups, dispatch]
+    [visibleGroups, state.groups, dispatch]
   );
 
   const moveGroup = (fromIndex, toIndex) => {
     if (toIndex < 0 || toIndex >= visibleGroups.length) return;
-
-    const newOrder = [...visibleGroups];
-    const [moved] = newOrder.splice(fromIndex, 1);
-    newOrder.splice(toIndex, 0, moved);
-    applyReorder(newOrder);
+    applyReorder(fromIndex, toIndex);
   };
 
-  // Container-level PanResponder that only activates when isDragging is true
+  // Get the translateY offset for a non-dragged item based on where the
+  // dragged item currently hovers
+  const getShiftForIndex = (index) => {
+    if (draggingIndex < 0) return 0;
+    const from = originalIndex.current;
+    const to = currentSlot.current;
+    if (from === to) return 0;
+
+    if (from < to) {
+      // Dragged downward: items between from+1..to shift up
+      if (index > from && index <= to) return -ROW_HEIGHT;
+    } else {
+      // Dragged upward: items between to..from-1 shift down
+      if (index >= to && index < from) return ROW_HEIGHT;
+    }
+    return 0;
+  };
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -84,30 +100,27 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
 
           if (newSlot !== currentSlot.current) {
             currentSlot.current = newSlot;
-            const newOrder = [...visibleGroups];
-            const [moved] = newOrder.splice(from, 1);
-            newOrder.splice(newSlot, 0, moved);
-            setLocalOrder(newOrder);
+            setTargetSlot(newSlot);
           }
         },
         onPanResponderRelease: () => {
           if (!isDragging.current) return;
           isDragging.current = false;
-          if (localOrder) {
-            applyReorder(localOrder);
-          }
+          const from = originalIndex.current;
+          const to = currentSlot.current;
+          applyReorder(from, to);
           setDraggingIndex(-1);
-          setLocalOrder(null);
+          setTargetSlot(-1);
           dragY.setValue(0);
         },
         onPanResponderTerminate: () => {
           isDragging.current = false;
           setDraggingIndex(-1);
-          setLocalOrder(null);
+          setTargetSlot(-1);
           dragY.setValue(0);
         },
       }),
-    [visibleGroups, localOrder, applyReorder, dragY]
+    [visibleGroups, applyReorder, dragY]
   );
 
   const handleLongPress = (index, pageY) => {
@@ -117,7 +130,7 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
     dragStartY.current = pageY;
     dragY.setValue(0);
     setDraggingIndex(index);
-    setLocalOrder([...visibleGroups]);
+    setTargetSlot(index);
     Vibration.vibrate(30);
   };
 
@@ -129,13 +142,12 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
           are reordered for all days.
         </Text>
 
-        <View style={{ minHeight: displayGroups.length * ROW_HEIGHT }}>
-          {displayGroups.map((group, index) => {
+        <View style={{ minHeight: visibleGroups.length * ROW_HEIGHT }}>
+          {visibleGroups.map((group, index) => {
             const icon = getIconById(group.icon);
             const isDaily = group.recurrence?.type === 'daily';
-            const isDraggedItem =
-              draggingIndex >= 0 &&
-              group.id === visibleGroups[draggingIndex]?.id;
+            const isDraggedItem = draggingIndex === index;
+            const shift = getShiftForIndex(index);
 
             const rowStyle = isDraggedItem
               ? [
@@ -157,10 +169,15 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
                 key={group.id}
                 style={[
                   styles.rowWrap,
-                  isDraggedItem && {
-                    zIndex: 999,
-                    transform: [{ translateY: dragY }],
-                  },
+                  isDraggedItem
+                    ? {
+                        zIndex: 999,
+                        transform: [{ translateY: dragY }],
+                      }
+                    : {
+                        zIndex: 1,
+                        transform: [{ translateY: shift }],
+                      },
                 ]}
               >
                 <Pressable
@@ -171,38 +188,15 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
                   delayLongPress={200}
                 >
                   <View style={styles.dragHandle}>
-                    <View
-                      style={[
-                        styles.handleBar,
-                        { backgroundColor: colors.textMuted },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.handleBar,
-                        { backgroundColor: colors.textMuted },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.handleBar,
-                        { backgroundColor: colors.textMuted },
-                      ]}
-                    />
+                    <View style={[styles.handleBar, { backgroundColor: colors.textMuted }]} />
+                    <View style={[styles.handleBar, { backgroundColor: colors.textMuted }]} />
+                    <View style={[styles.handleBar, { backgroundColor: colors.textMuted }]} />
                   </View>
-                  <View
-                    style={[
-                      styles.rowIcon,
-                      { backgroundColor: colors.primaryLight },
-                    ]}
-                  >
+                  <View style={[styles.rowIcon, { backgroundColor: colors.primaryLight }]}>
                     <Text style={styles.rowEmoji}>{icon.emoji}</Text>
                   </View>
                   <View style={styles.rowInfo}>
-                    <Text
-                      style={[styles.rowName, { color: colors.text }]}
-                      numberOfLines={1}
-                    >
+                    <Text style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>
                       {group.name}
                     </Text>
                     <Text style={[styles.rowBadge, { color: colors.textMuted }]}>
@@ -213,37 +207,16 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
                     <TouchableOpacity
                       onPress={() => moveGroup(index, index - 1)}
                       disabled={index === 0 || draggingIndex >= 0}
-                      style={[
-                        styles.arrowBtn,
-                        index === 0 && { opacity: 0.25 },
-                      ]}
+                      style={[styles.arrowBtn, index === 0 && { opacity: 0.25 }]}
                     >
-                      <View
-                        style={[
-                          styles.chevron,
-                          styles.chevronUp,
-                          { borderColor: colors.text },
-                        ]}
-                      />
+                      <View style={[styles.chevron, styles.chevronUp, { borderColor: colors.text }]} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => moveGroup(index, index + 1)}
-                      disabled={
-                        index === displayGroups.length - 1 ||
-                        draggingIndex >= 0
-                      }
-                      style={[
-                        styles.arrowBtn,
-                        index === displayGroups.length - 1 && { opacity: 0.25 },
-                      ]}
+                      disabled={index === visibleGroups.length - 1 || draggingIndex >= 0}
+                      style={[styles.arrowBtn, index === visibleGroups.length - 1 && { opacity: 0.25 }]}
                     >
-                      <View
-                        style={[
-                          styles.chevron,
-                          styles.chevronDown,
-                          { borderColor: colors.text },
-                        ]}
-                      />
+                      <View style={[styles.chevron, styles.chevronDown, { borderColor: colors.text }]} />
                     </TouchableOpacity>
                   </View>
                 </Pressable>
@@ -252,7 +225,7 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
           })}
         </View>
 
-        {displayGroups.length === 0 && (
+        {visibleGroups.length === 0 && (
           <Text style={[styles.emptyText, { color: colors.textMuted }]}>
             No groups to arrange for this day.
           </Text>
