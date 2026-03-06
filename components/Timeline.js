@@ -23,7 +23,7 @@ export default function Timeline({ selectedDate }) {
   const dateKey = selectedDate.toISOString().split('T')[0];
 
   const visibleGroups = state.groups.filter((g) =>
-    shouldShowOnDate(g.recurrence, selectedDate)
+    shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)
   );
 
   const openAddTask = (groupId) => {
@@ -64,7 +64,7 @@ export default function Timeline({ selectedDate }) {
       {visibleGroups.map((group, index) => {
         const icon = getIconById(group.icon);
         const visibleTasks = group.tasks.filter((t) =>
-          shouldShowOnDate(t.recurrence, selectedDate)
+          shouldShowOnDate(t.recurrence, selectedDate, t.createdDate)
         );
         const isLast = index === visibleGroups.length - 1;
 
@@ -82,9 +82,15 @@ export default function Timeline({ selectedDate }) {
               </View>
               <View style={styles.groupInfo}>
                 <Text style={[styles.groupName, { color: colors.text }]}>{group.name}</Text>
-                <Text style={[styles.groupCount, { color: colors.textMuted }]}>
-                  {visibleTasks.length} task{visibleTasks.length !== 1 ? 's' : ''}
-                </Text>
+                {group.description ? (
+                  <Text style={[styles.groupDesc, { color: colors.textMuted }]} numberOfLines={2}>
+                    {group.description}
+                  </Text>
+                ) : (
+                  <Text style={[styles.groupCount, { color: colors.textMuted }]}>
+                    {visibleTasks.length} task{visibleTasks.length !== 1 ? 's' : ''}
+                  </Text>
+                )}
               </View>
               <TouchableOpacity
                 style={[styles.addTaskBtn, { backgroundColor: colors.primary }]}
@@ -158,12 +164,14 @@ export default function Timeline({ selectedDate }) {
         visible={groupFormOpen}
         onClose={() => setGroupFormOpen(false)}
         editGroup={editGroup}
+        selectedDate={selectedDate}
       />
       <TaskForm
         visible={taskFormOpen}
         onClose={() => setTaskFormOpen(false)}
         groupId={activeGroupId}
         editTask={editTask}
+        selectedDate={selectedDate}
       />
     </View>
   );
@@ -220,6 +228,11 @@ const styles = StyleSheet.create({
   groupName: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  groupDesc: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   groupCount: {
     fontSize: 12,

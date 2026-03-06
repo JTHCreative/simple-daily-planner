@@ -63,6 +63,11 @@ export default function TaskItem({ task, groupId, dateKey, onEdit }) {
         >
           {task.name}
         </Text>
+        {task.description ? (
+          <Text style={[styles.description, { color: colors.textMuted }]} numberOfLines={2}>
+            {task.description}
+          </Text>
+        ) : null}
         {recLabel !== 'One time' && (
           <Text style={[styles.recurrence, { color: colors.textMuted }]}>{recLabel}</Text>
         )}
@@ -102,6 +107,10 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 15,
+  },
+  description: {
+    fontSize: 12,
+    fontStyle: 'italic',
   },
   recurrence: {
     fontSize: 11,

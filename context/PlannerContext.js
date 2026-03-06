@@ -20,8 +20,10 @@ function reducer(state, action) {
       const newGroup = {
         id: uuid(),
         name: action.payload.name,
+        description: action.payload.description || '',
         icon: action.payload.icon || 'sun',
         recurrence: action.payload.recurrence || { type: 'once' },
+        createdDate: action.payload.createdDate || new Date().toISOString().split('T')[0],
         tasks: [],
         order: state.groups.length,
       };
@@ -47,7 +49,9 @@ function reducer(state, action) {
       const task = {
         id: uuid(),
         name: action.payload.name,
+        description: action.payload.description || '',
         recurrence: action.payload.recurrence || { type: 'once' },
+        createdDate: action.payload.createdDate || new Date().toISOString().split('T')[0],
       };
       const groups = state.groups.map((g) =>
         g.id === action.payload.groupId ? { ...g, tasks: [...g.tasks, task] } : g

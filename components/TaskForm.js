@@ -5,18 +5,21 @@ import RecurrencePicker from './RecurrencePicker';
 import { usePlanner } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
-export default function TaskForm({ visible, onClose, groupId, editTask }) {
+export default function TaskForm({ visible, onClose, groupId, editTask, selectedDate }) {
   const colors = useTheme();
   const { dispatch } = usePlanner();
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [recurrence, setRecurrence] = useState({ type: 'once' });
 
   useEffect(() => {
     if (editTask) {
       setName(editTask.name);
+      setDescription(editTask.description || '');
       setRecurrence(editTask.recurrence || { type: 'once' });
     } else {
       setName('');
+      setDescription('');
       setRecurrence({ type: 'once' });
     }
   }, [editTask, visible]);
@@ -26,12 +29,15 @@ export default function TaskForm({ visible, onClose, groupId, editTask }) {
     if (editTask) {
       dispatch({
         type: 'UPDATE_TASK',
-        payload: { groupId, taskId: editTask.id, updates: { name: name.trim(), recurrence } },
+        payload: { groupId, taskId: editTask.id, updates: { name: name.trim(), description: description.trim(), recurrence } },
       });
     } else {
+      const createdDate = selectedDate
+        ? selectedDate.toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
       dispatch({
         type: 'ADD_TASK',
-        payload: { groupId, name: name.trim(), recurrence },
+        payload: { groupId, name: name.trim(), description: description.trim(), recurrence, createdDate },
       });
     }
     onClose();
@@ -58,6 +64,20 @@ export default function TaskForm({ visible, onClose, groupId, editTask }) {
           placeholder="e.g. Read Bible"
           placeholderTextColor={colors.textMuted}
           autoFocus
+        />
+
+        <Text style={[styles.label, { color: colors.textSecondary }]}>DESCRIPTION</Text>
+        <TextInput
+          style={[
+            styles.input,
+            styles.descInput,
+            { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
+          ]}
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Optional description..."
+          placeholderTextColor={colors.textMuted}
+          multiline
         />
 
         <Text style={[styles.label, { color: colors.textSecondary }]}>REPEATS</Text>
@@ -104,6 +124,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1.5,
     fontSize: 16,
+  },
+  descInput: {
+    minHeight: 60,
+    textAlignVertical: 'top',
+    fontSize: 14,
   },
   actions: {
     flexDirection: 'row',

@@ -6,20 +6,23 @@ import RecurrencePicker from './RecurrencePicker';
 import { usePlanner } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
-export default function GroupForm({ visible, onClose, editGroup }) {
+export default function GroupForm({ visible, onClose, editGroup, selectedDate }) {
   const colors = useTheme();
   const { dispatch } = usePlanner();
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('sun');
   const [recurrence, setRecurrence] = useState({ type: 'once' });
 
   useEffect(() => {
     if (editGroup) {
       setName(editGroup.name);
+      setDescription(editGroup.description || '');
       setIcon(editGroup.icon);
       setRecurrence(editGroup.recurrence || { type: 'once' });
     } else {
       setName('');
+      setDescription('');
       setIcon('sun');
       setRecurrence({ type: 'once' });
     }
@@ -30,12 +33,15 @@ export default function GroupForm({ visible, onClose, editGroup }) {
     if (editGroup) {
       dispatch({
         type: 'UPDATE_GROUP',
-        payload: { id: editGroup.id, updates: { name: name.trim(), icon, recurrence } },
+        payload: { id: editGroup.id, updates: { name: name.trim(), description: description.trim(), icon, recurrence } },
       });
     } else {
+      const createdDate = selectedDate
+        ? selectedDate.toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
       dispatch({
         type: 'ADD_GROUP',
-        payload: { name: name.trim(), icon, recurrence },
+        payload: { name: name.trim(), description: description.trim(), icon, recurrence, createdDate },
       });
     }
     onClose();
@@ -62,6 +68,20 @@ export default function GroupForm({ visible, onClose, editGroup }) {
           placeholder="e.g. Morning Routine"
           placeholderTextColor={colors.textMuted}
           autoFocus
+        />
+
+        <Text style={[styles.label, { color: colors.textSecondary }]}>DESCRIPTION</Text>
+        <TextInput
+          style={[
+            styles.input,
+            styles.descInput,
+            { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
+          ]}
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Optional description..."
+          placeholderTextColor={colors.textMuted}
+          multiline
         />
 
         <Text style={[styles.label, { color: colors.textSecondary }]}>ICON</Text>
@@ -111,6 +131,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1.5,
     fontSize: 16,
+  },
+  descInput: {
+    minHeight: 60,
+    textAlignVertical: 'top',
+    fontSize: 14,
   },
   actions: {
     flexDirection: 'row',
