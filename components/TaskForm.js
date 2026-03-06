@@ -5,7 +5,15 @@ import RecurrencePicker from './RecurrencePicker';
 import { usePlanner } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
-export default function TaskForm({ visible, onClose, groupId, editTask, selectedDate }) {
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function formatDate(date) {
+  if (!date) return '';
+  return `${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+export default function TaskForm({ visible, onClose, groupId, groupName, editTask, selectedDate }) {
   const colors = useTheme();
   const { dispatch } = usePlanner();
   const [name, setName] = useState('');
@@ -53,6 +61,23 @@ export default function TaskForm({ visible, onClose, groupId, editTask, selected
   return (
     <BottomSheet visible={visible} onClose={onClose} title={editTask ? 'Edit Task' : 'New Task'}>
       <View style={styles.form}>
+        {(groupName || selectedDate) && (
+          <View style={[styles.context, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            {groupName && (
+              <View style={styles.contextRow}>
+                <Text style={[styles.contextLabel, { color: colors.textMuted }]}>Group</Text>
+                <Text style={[styles.contextValue, { color: colors.text }]}>{groupName}</Text>
+              </View>
+            )}
+            {selectedDate && (
+              <View style={styles.contextRow}>
+                <Text style={[styles.contextLabel, { color: colors.textMuted }]}>Date</Text>
+                <Text style={[styles.contextValue, { color: colors.text }]}>{formatDate(selectedDate)}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
         <Text style={[styles.label, { color: colors.textSecondary }]}>TASK NAME</Text>
         <TextInput
           style={[
@@ -129,6 +154,27 @@ const styles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
     fontSize: 14,
+  },
+  context: {
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 6,
+    marginBottom: 4,
+  },
+  contextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  contextLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    width: 44,
+  },
+  contextValue: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   actions: {
     flexDirection: 'row',

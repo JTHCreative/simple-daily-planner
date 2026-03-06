@@ -18,6 +18,7 @@ export default function Timeline({ selectedDate }) {
   const [editGroup, setEditGroup] = useState(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState(null);
+  const [activeGroupName, setActiveGroupName] = useState('');
   const [editTask, setEditTask] = useState(null);
 
   const dateKey = selectedDate.toISOString().split('T')[0];
@@ -26,14 +27,16 @@ export default function Timeline({ selectedDate }) {
     shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)
   );
 
-  const openAddTask = (groupId) => {
+  const openAddTask = (groupId, groupName) => {
     setActiveGroupId(groupId);
+    setActiveGroupName(groupName);
     setEditTask(null);
     setTaskFormOpen(true);
   };
 
-  const openEditTask = (groupId, task) => {
+  const openEditTask = (groupId, groupName, task) => {
     setActiveGroupId(groupId);
+    setActiveGroupName(groupName);
     setEditTask(task);
     setTaskFormOpen(true);
   };
@@ -94,7 +97,7 @@ export default function Timeline({ selectedDate }) {
               </View>
               <TouchableOpacity
                 style={[styles.addTaskBtn, { backgroundColor: colors.primary }]}
-                onPress={() => openAddTask(group.id)}
+                onPress={() => openAddTask(group.id, group.name)}
               >
                 <Text style={styles.addTaskPlus}>+</Text>
               </TouchableOpacity>
@@ -121,13 +124,13 @@ export default function Timeline({ selectedDate }) {
                     task={task}
                     groupId={group.id}
                     dateKey={dateKey}
-                    onEdit={(t) => openEditTask(group.id, t)}
+                    onEdit={(t) => openEditTask(group.id, group.name, t)}
                   />
                 ))}
                 {visibleTasks.length === 0 && (
                   <TouchableOpacity
                     style={[styles.addFirstTask, { borderColor: colors.border }]}
-                    onPress={() => openAddTask(group.id)}
+                    onPress={() => openAddTask(group.id, group.name)}
                   >
                     <Text style={[styles.addFirstText, { color: colors.textMuted }]}>+ Add a task</Text>
                   </TouchableOpacity>
@@ -170,6 +173,7 @@ export default function Timeline({ selectedDate }) {
         visible={taskFormOpen}
         onClose={() => setTaskFormOpen(false)}
         groupId={activeGroupId}
+        groupName={activeGroupName}
         editTask={editTask}
         selectedDate={selectedDate}
       />
