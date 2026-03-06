@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { useColorScheme } from 'react-native';
 
 const lightColors = {
@@ -26,7 +27,20 @@ const darkColors = {
   dangerLight: 'rgba(248, 113, 113, 0.12)',
 };
 
+const ThemeModeContext = createContext('system');
+
+export const ThemeModeProvider = ThemeModeContext.Provider;
+
 export function useTheme() {
-  const scheme = useColorScheme();
+  const themeMode = useContext(ThemeModeContext);
+  const systemScheme = useColorScheme();
+  const scheme = themeMode === 'light' || themeMode === 'dark' ? themeMode : systemScheme;
   return scheme === 'dark' ? darkColors : lightColors;
+}
+
+export function useIsDark() {
+  const themeMode = useContext(ThemeModeContext);
+  const systemScheme = useColorScheme();
+  const scheme = themeMode === 'light' || themeMode === 'dark' ? themeMode : systemScheme;
+  return scheme === 'dark';
 }

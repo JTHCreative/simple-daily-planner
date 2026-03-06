@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 
-export default function SplashScreen({ onFinish }) {
+export default function SplashScreen({ onFinish, userName }) {
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function SplashScreen({ onFinish }) {
           />
         </Svg>
         <View style={styles.textGroup}>
-          <Text style={styles.title}>My Planner</Text>
+          <Text style={styles.title}>{userName ? `${userName}'s Planner` : 'My Planner'}</Text>
           <Text style={styles.subtitle}>Task Manager</Text>
         </View>
       </Animated.View>

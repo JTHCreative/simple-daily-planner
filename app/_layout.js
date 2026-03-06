@@ -1,25 +1,52 @@
 import { useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { PlannerProvider } from '../context/PlannerContext';
+import { PlannerProvider, usePlanner } from '../context/PlannerContext';
+import { ThemeModeProvider, useIsDark } from '../utils/theme';
 import SplashScreen from '../components/SplashScreen';
 
-export default function RootLayout() {
-  const [showSplash, setShowSplash] = useState(true);
+function AppContent({ onSplashFinish, showSplash }) {
+  const { state } = usePlanner();
+  const themeMode = state.settings?.themeMode || 'system';
+  const isDark = useIsDark();
+  const userName = state.settings?.userName || '';
 
   if (showSplash) {
     return (
       <>
         <StatusBar style="light" />
-        <SplashScreen onFinish={() => setShowSplash(false)} />
+        <SplashScreen onFinish={onSplashFinish} userName={userName} />
       </>
     );
   }
 
   return (
-    <PlannerProvider>
-      <StatusBar style="auto" />
+    <ThemeModeProvider value={themeMode}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }} />
+    </ThemeModeProvider>
+  );
+}
+
+function ThemedApp() {
+  const [showSplash, setShowSplash] = useState(true);
+  const { state } = usePlanner();
+  const themeMode = state.settings?.themeMode || 'system';
+
+  return (
+    <ThemeModeProvider value={themeMode}>
+      <AppContent
+        showSplash={showSplash}
+        onSplashFinish={() => setShowSplash(false)}
+      />
+    </ThemeModeProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <PlannerProvider>
+      <ThemedApp />
     </PlannerProvider>
   );
 }

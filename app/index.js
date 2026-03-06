@@ -1,27 +1,116 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Circle, Polyline } from 'react-native-svg';
 import DateHeader from '../components/DateHeader';
 import Timeline from '../components/Timeline';
 import WeeklyGoals from '../components/WeeklyGoals';
+import SettingsModal from '../components/SettingsModal';
+import { usePlanner } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
 export default function HomeScreen() {
   const colors = useTheme();
+  const { state } = usePlanner();
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d;
   });
   const [view, setView] = useState('daily');
+  const [settingsVisible, setSettingsVisible] = useState(false);
+
+  const userName = state.settings?.userName || '';
+  const headerTitle = userName ? `${userName}'s Planner` : 'My Planner';
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>My Planner</Text>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
+      {/* Header Bar */}
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={styles.headerLeft}>
+          <View style={styles.appIcon}>
+            <Svg width={28} height={28} viewBox="0 0 1024 1024">
+              <Circle cx="512" cy="512" r="420" fill="#E53935" />
+              <Circle
+                cx="512"
+                cy="512"
+                r="280"
+                fill="none"
+                stroke="#FFFFFF"
+                strokeWidth="48"
+                strokeLinecap="round"
+              />
+              <Polyline
+                points="380,520 470,620 644,420"
+                fill="none"
+                stroke="#FFFFFF"
+                strokeWidth="52"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </View>
+          <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
+            {headerTitle}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={() => setSettingsVisible(true)} style={styles.settingsBtn} hitSlop={8}>
+          <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+            <Circle cx="12" cy="12" r="3" stroke={colors.textSecondary} strokeWidth="2" />
+            <Polyline
+              points="12,2 13.5,5"
+              stroke={colors.textSecondary}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <Polyline
+              points="12,22 10.5,19"
+              stroke={colors.textSecondary}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <Polyline
+              points="4.93,4.93 7.05,7.46"
+              stroke={colors.textSecondary}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <Polyline
+              points="19.07,19.07 16.95,16.54"
+              stroke={colors.textSecondary}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <Polyline
+              points="2,12 5,10.5"
+              stroke={colors.textSecondary}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <Polyline
+              points="22,12 19,13.5"
+              stroke={colors.textSecondary}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <Polyline
+              points="4.93,19.07 7.46,16.95"
+              stroke={colors.textSecondary}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <Polyline
+              points="19.07,4.93 16.54,7.05"
+              stroke={colors.textSecondary}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </Svg>
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.tabs}>
+      {/* Tabs below header */}
+      <View style={[styles.tabs, { backgroundColor: colors.bg }]}>
         <TouchableOpacity
           style={[styles.tab, view === 'daily' && { backgroundColor: colors.primary }]}
           onPress={() => setView('daily')}
@@ -53,6 +142,8 @@ export default function HomeScreen() {
           <Timeline selectedDate={selectedDate} />
         )}
       </ScrollView>
+
+      <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
     </SafeAreaView>
   );
 }
@@ -62,20 +153,43 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
   },
-  title: {
-    fontSize: 22,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  appIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
     fontWeight: '700',
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
+    flex: 1,
+  },
+  settingsBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabs: {
     flexDirection: 'row',
     gap: 4,
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 4,
     justifyContent: 'center',
   },
   tab: {

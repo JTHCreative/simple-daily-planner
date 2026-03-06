@@ -9,6 +9,10 @@ const DEFAULT_STATE = {
   groups: [],
   completedTasks: {},
   weeklyGoals: [],
+  settings: {
+    userName: '',
+    themeMode: 'system', // 'system' | 'light' | 'dark'
+  },
 };
 
 function reducer(state, action) {
@@ -178,6 +182,11 @@ function reducer(state, action) {
           : g
       );
       return { ...state, weeklyGoals };
+    }
+
+    case 'UPDATE_SETTINGS': {
+      const settings = { ...(state.settings || {}), ...action.payload };
+      return { ...state, settings };
     }
 
     case 'TOGGLE_GOAL_SUBTASK': {
