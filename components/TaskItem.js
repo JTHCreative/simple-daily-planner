@@ -34,7 +34,7 @@ export default function TaskItem({ task, groupId, dateKey, onEdit }) {
         styles.container,
         {
           backgroundColor: pressed ? colors.surface : 'transparent',
-          opacity: isCompleted ? 0.6 : 1,
+          opacity: 1,
         },
       ]}
     >
