@@ -8,8 +8,8 @@ import TaskForm from './TaskForm';
 import GroupForm from './GroupForm';
 import { useTheme } from '../utils/theme';
 
-const LINE_LEFT = 20;
-const LINE_WIDTH = 2;
+// Icon center: group padding (14) + half icon width (22) = 36
+const LINE_OFFSET = 36;
 
 export default function Timeline({ selectedDate }) {
   const colors = useTheme();
@@ -70,113 +70,76 @@ export default function Timeline({ selectedDate }) {
 
         return (
           <View key={group.id}>
-            {/* Group header row */}
-            <View style={styles.row}>
-              {/* Timeline line segment behind the group dot */}
-              <View style={styles.lineCol}>
-                {index > 0 && (
-                  <View
-                    style={[
-                      styles.lineSegmentTop,
-                      { backgroundColor: colors.primary, left: LINE_LEFT - LINE_WIDTH / 2 },
-                    ]}
+            {/* Group header card */}
+            <TouchableOpacity
+              style={[styles.groupHeader, { backgroundColor: colors.surface }]}
+              onPress={() => openEditGroup(group)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.groupIcon, { backgroundColor: colors.primaryLight }]}>
+                <Text style={styles.groupEmoji}>{icon.emoji}</Text>
+              </View>
+              <View style={styles.groupInfo}>
+                <Text style={[styles.groupName, { color: colors.text }]}>{group.name}</Text>
+                <Text style={[styles.groupCount, { color: colors.textMuted }]}>
+                  {visibleTasks.length} task{visibleTasks.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.addTaskBtn, { backgroundColor: colors.primary }]}
+                onPress={() => openAddTask(group.id)}
+              >
+                <Text style={styles.addTaskPlus}>+</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+
+            {/* Task list area with timeline line on the left under the icon */}
+            <View style={styles.taskArea}>
+              {/* Vertical timeline line — runs full height of task area */}
+              <View
+                style={[
+                  styles.timelineLine,
+                  {
+                    left: LINE_OFFSET,
+                    backgroundColor: colors.primary,
+                  },
+                ]}
+              />
+
+              {/* Tasks */}
+              <View style={styles.taskList}>
+                {visibleTasks.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    groupId={group.id}
+                    dateKey={dateKey}
+                    onEdit={(t) => openEditTask(group.id, t)}
                   />
+                ))}
+                {visibleTasks.length === 0 && (
+                  <TouchableOpacity
+                    style={[styles.addFirstTask, { borderColor: colors.border }]}
+                    onPress={() => openAddTask(group.id)}
+                  >
+                    <Text style={[styles.addFirstText, { color: colors.textMuted }]}>+ Add a task</Text>
+                  </TouchableOpacity>
                 )}
+              </View>
+            </View>
+
+            {/* Connector line to next group */}
+            {!isLast && (
+              <View style={styles.connectorWrap}>
                 <View
                   style={[
-                    styles.groupDot,
+                    styles.connector,
                     {
+                      left: LINE_OFFSET,
                       backgroundColor: colors.primary,
-                      left: LINE_LEFT - 5,
                     },
                   ]}
                 />
-                {(visibleTasks.length > 0 || !isLast) && (
-                  <View
-                    style={[
-                      styles.lineSegmentBottom,
-                      { backgroundColor: colors.primary, left: LINE_LEFT - LINE_WIDTH / 2 },
-                    ]}
-                  />
-                )}
-              </View>
-
-              <TouchableOpacity
-                style={[styles.groupHeader, { backgroundColor: colors.surface }]}
-                onPress={() => openEditGroup(group)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.groupIcon, { backgroundColor: colors.primaryLight }]}>
-                  <Text style={styles.groupEmoji}>{icon.emoji}</Text>
-                </View>
-                <View style={styles.groupInfo}>
-                  <Text style={[styles.groupName, { color: colors.text }]}>{group.name}</Text>
-                  <Text style={[styles.groupCount, { color: colors.textMuted }]}>
-                    {visibleTasks.length} task{visibleTasks.length !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.addTaskBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => openAddTask(group.id)}
-                >
-                  <Text style={styles.addTaskPlus}>+</Text>
-                </TouchableOpacity>
-              </TouchableOpacity>
-            </View>
-
-            {/* Task rows */}
-            {visibleTasks.map((task, taskIndex) => {
-              const showLineBelow =
-                taskIndex < visibleTasks.length - 1 || !isLast;
-              return (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  groupId={group.id}
-                  dateKey={dateKey}
-                  onEdit={(t) => openEditTask(group.id, t)}
-                  lineColor={colors.primary}
-                  showLineAbove
-                  showLineBelow={showLineBelow}
-                />
-              );
-            })}
-
-            {/* Empty state: add first task */}
-            {visibleTasks.length === 0 && (
-              <View style={styles.row}>
-                <View style={styles.lineCol}>
-                  <View
-                    style={[
-                      styles.lineSegmentTop,
-                      { backgroundColor: colors.primary, left: LINE_LEFT - LINE_WIDTH / 2 },
-                    ]}
-                  />
-                  {/* Empty circle on line */}
-                  <View
-                    style={[
-                      styles.emptyCircle,
-                      {
-                        borderColor: colors.border,
-                        left: LINE_LEFT - 10,
-                      },
-                    ]}
-                  />
-                  {!isLast && (
-                    <View
-                      style={[
-                        styles.lineSegmentBottom,
-                        { backgroundColor: colors.primary, left: LINE_LEFT - LINE_WIDTH / 2 },
-                      ]}
-                    />
-                  )}
-                </View>
-                <TouchableOpacity
-                  style={[styles.addFirstTask, { borderColor: colors.border }]}
-                  onPress={() => openAddTask(group.id)}
-                >
-                  <Text style={[styles.addFirstText, { color: colors.textMuted }]}>+ Add a task</Text>
-                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -233,49 +196,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     textAlign: 'center',
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  lineCol: {
-    width: 40,
-    alignSelf: 'stretch',
-    position: 'relative',
-  },
-  lineSegmentTop: {
-    position: 'absolute',
-    top: 0,
-    width: LINE_WIDTH,
-    height: '50%',
-  },
-  lineSegmentBottom: {
-    position: 'absolute',
-    bottom: 0,
-    width: LINE_WIDTH,
-    height: '50%',
-  },
-  groupDot: {
-    position: 'absolute',
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    top: '50%',
-    marginTop: -5,
-    zIndex: 1,
-  },
-  emptyCircle: {
-    position: 'absolute',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    backgroundColor: 'transparent',
-    top: '50%',
-    marginTop: -10,
-    zIndex: 1,
-  },
   groupHeader: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -315,8 +236,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: -1,
   },
+  taskArea: {
+    position: 'relative',
+    paddingVertical: 6,
+  },
+  timelineLine: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 2,
+    marginLeft: -1,
+  },
+  taskList: {
+    paddingLeft: 58,
+    gap: 4,
+  },
   addFirstTask: {
-    flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1.5,
@@ -325,6 +260,17 @@ const styles = StyleSheet.create({
   },
   addFirstText: {
     fontSize: 14,
+  },
+  connectorWrap: {
+    position: 'relative',
+    height: 20,
+  },
+  connector: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 2,
+    marginLeft: -1,
   },
   addGroupBtn: {
     alignSelf: 'center',

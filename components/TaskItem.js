@@ -3,19 +3,14 @@ import { usePlanner } from '../context/PlannerContext';
 import { getRecurrenceLabel } from '../utils/recurrence';
 import { useTheme } from '../utils/theme';
 
-const LINE_LEFT = 20;
-const LINE_WIDTH = 2;
+// Circle sits on the timeline line.
+// Timeline line is at left=36 in the parent container.
+// Task list has paddingLeft=58, so circle needs to be at 36-58 = -22 from task edge.
+// Circle is 22px wide, so left = -22 - 11 = -33 to center it on the line.
 const CIRCLE_SIZE = 22;
+const CIRCLE_LEFT = -33;
 
-export default function TaskItem({
-  task,
-  groupId,
-  dateKey,
-  onEdit,
-  lineColor,
-  showLineAbove,
-  showLineBelow,
-}) {
+export default function TaskItem({ task, groupId, dateKey, onEdit }) {
   const colors = useTheme();
   const { state, dispatch } = usePlanner();
   const isCompleted = state.completedTasks[dateKey]?.[task.id] || false;
@@ -36,45 +31,27 @@ export default function TaskItem({
       onLongPress={handleLongPress}
       delayLongPress={400}
       style={({ pressed }) => [
-        styles.row,
-        { opacity: isCompleted ? 0.6 : 1 },
+        styles.container,
+        {
+          backgroundColor: pressed ? colors.surface : 'transparent',
+          opacity: isCompleted ? 0.6 : 1,
+        },
       ]}
     >
-      {/* Timeline column with line + circle */}
-      <View style={styles.lineCol}>
-        {showLineAbove && (
-          <View
-            style={[
-              styles.lineSegmentTop,
-              { backgroundColor: lineColor, left: LINE_LEFT - LINE_WIDTH / 2 },
-            ]}
-          />
-        )}
-        {showLineBelow && (
-          <View
-            style={[
-              styles.lineSegmentBottom,
-              { backgroundColor: lineColor, left: LINE_LEFT - LINE_WIDTH / 2 },
-            ]}
-          />
-        )}
-        {/* Checkbox circle on the line */}
-        <View
-          style={[
-            styles.circle,
-            {
-              left: LINE_LEFT - CIRCLE_SIZE / 2,
-              borderColor: isCompleted ? colors.primary : colors.border,
-              backgroundColor: isCompleted ? colors.primary : colors.bg,
-            },
-          ]}
-        >
-          {isCompleted && <Text style={styles.checkmark}>✓</Text>}
-        </View>
+      {/* Checkbox circle positioned on the timeline line */}
+      <View
+        style={[
+          styles.circle,
+          {
+            borderColor: isCompleted ? colors.primary : colors.border,
+            backgroundColor: isCompleted ? colors.primary : colors.bg,
+          },
+        ]}
+      >
+        {isCompleted && <Text style={styles.checkmark}>✓</Text>}
       </View>
 
-      {/* Task content */}
-      <View style={styles.content}>
+      <View style={styles.info}>
         <Text
           style={[
             styles.name,
@@ -95,49 +72,32 @@ export default function TaskItem({
 }
 
 const styles = StyleSheet.create({
-  row: {
+  container: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 48,
-  },
-  lineCol: {
-    width: 40,
-    alignSelf: 'stretch',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
     position: 'relative',
-  },
-  lineSegmentTop: {
-    position: 'absolute',
-    top: 0,
-    width: LINE_WIDTH,
-    height: '50%',
-  },
-  lineSegmentBottom: {
-    position: 'absolute',
-    bottom: 0,
-    width: LINE_WIDTH,
-    height: '50%',
   },
   circle: {
     position: 'absolute',
+    left: CIRCLE_LEFT,
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,
     borderRadius: CIRCLE_SIZE / 2,
     borderWidth: 2,
-    top: '50%',
-    marginTop: -CIRCLE_SIZE / 2,
-    zIndex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   checkmark: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
   },
-  content: {
+  info: {
     flex: 1,
-    paddingVertical: 10,
-    paddingRight: 16,
     gap: 2,
   },
   name: {
