@@ -6,6 +6,7 @@ import { shouldShowOnDate } from '../utils/recurrence';
 import TaskItem from './TaskItem';
 import TaskForm from './TaskForm';
 import GroupForm from './GroupForm';
+import GroupArrange from './GroupArrange';
 import { useTheme } from '../utils/theme';
 
 // Icon center: group padding (14) + half icon width (22) = 36
@@ -20,6 +21,7 @@ export default function Timeline({ selectedDate }) {
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [activeGroupName, setActiveGroupName] = useState('');
   const [editTask, setEditTask] = useState(null);
+  const [arrangeOpen, setArrangeOpen] = useState(false);
 
   const dateKey = selectedDate.toISOString().split('T')[0];
 
@@ -74,7 +76,8 @@ export default function Timeline({ selectedDate }) {
             {/* Group header card */}
             <TouchableOpacity
               style={[styles.groupHeader, { backgroundColor: colors.surface }]}
-              onLongPress={() => openEditGroup(group)}
+              onPress={() => openEditGroup(group)}
+              onLongPress={() => setArrangeOpen(true)}
               delayLongPress={400}
               activeOpacity={0.7}
             >
@@ -182,6 +185,11 @@ export default function Timeline({ selectedDate }) {
         groupId={activeGroupId}
         groupName={activeGroupName}
         editTask={editTask}
+        selectedDate={selectedDate}
+      />
+      <GroupArrange
+        visible={arrangeOpen}
+        onClose={() => setArrangeOpen(false)}
         selectedDate={selectedDate}
       />
     </View>
