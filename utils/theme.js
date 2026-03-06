@@ -12,6 +12,15 @@ const lightColors = {
   border: '#d4d4d4',
   danger: '#dc2626',
   dangerLight: 'rgba(220, 38, 38, 0.1)',
+  headerBg: '#dc2626',
+  headerText: '#ffffff',
+  headerIcon: '#ffffff',
+  groupHeaderBg: '#dc2626',
+  groupHeaderText: '#ffffff',
+  groupHeaderMuted: 'rgba(255, 255, 255, 0.75)',
+  groupIconBg: 'rgba(255, 255, 255, 0.2)',
+  addBtnBg: '#ffffff',
+  addBtnText: '#dc2626',
 };
 
 const darkColors = {
@@ -25,6 +34,15 @@ const darkColors = {
   border: '#404040',
   danger: '#f87171',
   dangerLight: 'rgba(248, 113, 113, 0.12)',
+  headerBg: '#1f1f1f',
+  headerText: '#f5f5f5',
+  headerIcon: '#a3a3a3',
+  groupHeaderBg: '#262626',
+  groupHeaderText: '#f5f5f5',
+  groupHeaderMuted: '#737373',
+  groupIconBg: 'rgba(239, 68, 68, 0.12)',
+  addBtnBg: '#ef4444',
+  addBtnText: '#ffffff',
 };
 
 const ThemeModeContext = createContext('system');

@@ -98,32 +98,32 @@ export default function Timeline({ selectedDate }) {
           <View key={group.id}>
             {/* Group header card */}
             <TouchableOpacity
-              style={[styles.groupHeader, { backgroundColor: colors.surface }]}
+              style={[styles.groupHeader, { backgroundColor: colors.groupHeaderBg }]}
               onPress={() => openEditGroup(group)}
               onLongPress={() => setArrangeOpen(true)}
               delayLongPress={400}
               activeOpacity={0.7}
             >
-              <View style={[styles.groupIcon, { backgroundColor: colors.primaryLight }]}>
+              <View style={[styles.groupIcon, { backgroundColor: colors.groupIconBg }]}>
                 <Text style={styles.groupEmoji}>{icon.emoji}</Text>
               </View>
               <View style={styles.groupInfo}>
-                <Text style={[styles.groupName, { color: colors.text }]}>{group.name}</Text>
+                <Text style={[styles.groupName, { color: colors.groupHeaderText }]}>{group.name}</Text>
                 {group.description ? (
-                  <Text style={[styles.groupDesc, { color: colors.textMuted }]} numberOfLines={2}>
+                  <Text style={[styles.groupDesc, { color: colors.groupHeaderMuted }]} numberOfLines={2}>
                     {group.description}
                   </Text>
                 ) : (
-                  <Text style={[styles.groupCount, { color: colors.textMuted }]}>
+                  <Text style={[styles.groupCount, { color: colors.groupHeaderMuted }]}>
                     {visibleTasks.length} task{visibleTasks.length !== 1 ? 's' : ''}
                   </Text>
                 )}
               </View>
               <TouchableOpacity
-                style={[styles.addTaskBtn, { backgroundColor: colors.primary }]}
+                style={[styles.addTaskBtn, { backgroundColor: colors.addBtnBg }]}
                 onPress={() => openAddTask(group.id, group.name, group.recurrence)}
               >
-                <Text style={styles.addTaskPlus}>+</Text>
+                <Text style={[styles.addTaskPlus, { color: colors.addBtnText }]}>+</Text>
               </TouchableOpacity>
             </TouchableOpacity>
 
@@ -296,7 +296,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addTaskPlus: {
-    color: '#fff',
     fontSize: 20,
     fontWeight: '500',
     marginTop: -1,

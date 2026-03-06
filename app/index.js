@@ -26,82 +26,82 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       {/* Header Bar */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.headerBg }]}>
         <View style={styles.headerLeft}>
           <View style={styles.appIcon}>
             <Svg width={28} height={28} viewBox="0 0 1024 1024">
-              <Circle cx="512" cy="512" r="420" fill="#E53935" />
+              <Circle cx="512" cy="512" r="420" fill={colors.headerText} />
               <Circle
                 cx="512"
                 cy="512"
                 r="280"
                 fill="none"
-                stroke="#FFFFFF"
+                stroke={colors.headerBg}
                 strokeWidth="48"
                 strokeLinecap="round"
               />
               <Polyline
                 points="380,520 470,620 644,420"
                 fill="none"
-                stroke="#FFFFFF"
+                stroke={colors.headerBg}
                 strokeWidth="52"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </Svg>
           </View>
-          <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
+          <Text style={[styles.headerTitle, { color: colors.headerText }]} numberOfLines={1}>
             {headerTitle}
           </Text>
         </View>
         <TouchableOpacity onPress={() => setSettingsVisible(true)} style={styles.settingsBtn} hitSlop={8}>
           <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-            <Circle cx="12" cy="12" r="3" stroke={colors.textSecondary} strokeWidth="2" />
+            <Circle cx="12" cy="12" r="3" stroke={colors.headerIcon} strokeWidth="2" />
             <Polyline
               points="12,2 13.5,5"
-              stroke={colors.textSecondary}
+              stroke={colors.headerIcon}
               strokeWidth="2"
               strokeLinecap="round"
             />
             <Polyline
               points="12,22 10.5,19"
-              stroke={colors.textSecondary}
+              stroke={colors.headerIcon}
               strokeWidth="2"
               strokeLinecap="round"
             />
             <Polyline
               points="4.93,4.93 7.05,7.46"
-              stroke={colors.textSecondary}
+              stroke={colors.headerIcon}
               strokeWidth="2"
               strokeLinecap="round"
             />
             <Polyline
               points="19.07,19.07 16.95,16.54"
-              stroke={colors.textSecondary}
+              stroke={colors.headerIcon}
               strokeWidth="2"
               strokeLinecap="round"
             />
             <Polyline
               points="2,12 5,10.5"
-              stroke={colors.textSecondary}
+              stroke={colors.headerIcon}
               strokeWidth="2"
               strokeLinecap="round"
             />
             <Polyline
               points="22,12 19,13.5"
-              stroke={colors.textSecondary}
+              stroke={colors.headerIcon}
               strokeWidth="2"
               strokeLinecap="round"
             />
             <Polyline
               points="4.93,19.07 7.46,16.95"
-              stroke={colors.textSecondary}
+              stroke={colors.headerIcon}
               strokeWidth="2"
               strokeLinecap="round"
             />
             <Polyline
               points="19.07,4.93 16.54,7.05"
-              stroke={colors.textSecondary}
+              stroke={colors.headerIcon}
               strokeWidth="2"
               strokeLinecap="round"
             />
