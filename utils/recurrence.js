@@ -31,7 +31,7 @@ export function getRecurrenceLabel(recurrence) {
   if (recurrence.type === RECURRENCE_TYPES.DAILY) return 'Daily';
   if (recurrence.type === RECURRENCE_TYPES.WEEKLY) return 'Weekly';
   if (recurrence.type === RECURRENCE_TYPES.CUSTOM) {
-    const days = (recurrence.days || []).map(d => DAY_NAMES[d]).join(', ');
+    const days = (recurrence.days || []).map((d) => DAY_NAMES[d]).join(', ');
     return days || 'Custom';
   }
   return 'One time';

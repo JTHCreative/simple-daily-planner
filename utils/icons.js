@@ -22,5 +22,5 @@ export const ICON_OPTIONS = [
 ];
 
 export function getIconById(id) {
-  return ICON_OPTIONS.find(i => i.id === id) || ICON_OPTIONS[0];
+  return ICON_OPTIONS.find((i) => i.id === id) || ICON_OPTIONS[0];
 }

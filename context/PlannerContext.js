@@ -1,4 +1,5 @@
-import { createContext, useContext, useReducer, useEffect } from 'react';
+import 'react-native-get-random-values';
+import { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { loadData, saveData } from '../utils/storage';
 import { v4 as uuid } from 'uuid';
 
@@ -28,14 +29,14 @@ function reducer(state, action) {
     }
 
     case 'UPDATE_GROUP': {
-      const groups = state.groups.map(g =>
+      const groups = state.groups.map((g) =>
         g.id === action.payload.id ? { ...g, ...action.payload.updates } : g
       );
       return { ...state, groups };
     }
 
     case 'DELETE_GROUP': {
-      const groups = state.groups.filter(g => g.id !== action.payload);
+      const groups = state.groups.filter((g) => g.id !== action.payload);
       return { ...state, groups };
     }
 
@@ -48,23 +49,19 @@ function reducer(state, action) {
         name: action.payload.name,
         recurrence: action.payload.recurrence || { type: 'once' },
       };
-      const groups = state.groups.map(g =>
-        g.id === action.payload.groupId
-          ? { ...g, tasks: [...g.tasks, task] }
-          : g
+      const groups = state.groups.map((g) =>
+        g.id === action.payload.groupId ? { ...g, tasks: [...g.tasks, task] } : g
       );
       return { ...state, groups };
     }
 
     case 'UPDATE_TASK': {
-      const groups = state.groups.map(g =>
+      const groups = state.groups.map((g) =>
         g.id === action.payload.groupId
           ? {
               ...g,
-              tasks: g.tasks.map(t =>
-                t.id === action.payload.taskId
-                  ? { ...t, ...action.payload.updates }
-                  : t
+              tasks: g.tasks.map((t) =>
+                t.id === action.payload.taskId ? { ...t, ...action.payload.updates } : t
               ),
             }
           : g
@@ -73,9 +70,9 @@ function reducer(state, action) {
     }
 
     case 'DELETE_TASK': {
-      const groups = state.groups.map(g =>
+      const groups = state.groups.map((g) =>
         g.id === action.payload.groupId
-          ? { ...g, tasks: g.tasks.filter(t => t.id !== action.payload.taskId) }
+          ? { ...g, tasks: g.tasks.filter((t) => t.id !== action.payload.taskId) }
           : g
       );
       return { ...state, groups };
@@ -100,14 +97,14 @@ function reducer(state, action) {
     }
 
     case 'TOGGLE_WEEKLY_GOAL': {
-      const weeklyGoals = state.weeklyGoals.map(g =>
+      const weeklyGoals = state.weeklyGoals.map((g) =>
         g.id === action.payload ? { ...g, completed: !g.completed } : g
       );
       return { ...state, weeklyGoals };
     }
 
     case 'DELETE_WEEKLY_GOAL': {
-      const weeklyGoals = state.weeklyGoals.filter(g => g.id !== action.payload);
+      const weeklyGoals = state.weeklyGoals.filter((g) => g.id !== action.payload);
       return { ...state, weeklyGoals };
     }
 
@@ -118,16 +115,21 @@ function reducer(state, action) {
 
 export function PlannerProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, DEFAULT_STATE);
+  const isLoaded = useRef(false);
 
   useEffect(() => {
-    const saved = loadData();
-    if (saved) {
-      dispatch({ type: 'LOAD_DATA', payload: saved });
-    }
+    loadData().then((saved) => {
+      if (saved) {
+        dispatch({ type: 'LOAD_DATA', payload: saved });
+      }
+      isLoaded.current = true;
+    });
   }, []);
 
   useEffect(() => {
-    saveData(state);
+    if (isLoaded.current) {
+      saveData(state);
+    }
   }, [state]);
 
   return (

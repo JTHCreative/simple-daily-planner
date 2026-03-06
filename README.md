@@ -1,16 +1,21 @@
-# React + Vite
+# Simple Daily Planner
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React Native daily planner app built with Expo. Organize your day with task groups, repeating tasks, and weekly goals.
 
-Currently, two official plugins are available:
+## Getting Started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+npx expo start
+```
 
-## React Compiler
+Scan the QR code with Expo Go on your phone.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Features
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- **Task Groups** - Create ordered groups (Morning Routine, House Chores, etc.) with icons
+- **Tasks** - Tap to complete, long-press to edit/delete
+- **Recurrence** - Tasks and groups can repeat daily, weekly, on custom days, or be one-time
+- **Timeline View** - Groups connected by a visual path showing your day's flow
+- **Weekly Goals** - Track goals for the current week
+- **Dark Mode** - Follows system preference
