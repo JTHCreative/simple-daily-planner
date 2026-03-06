@@ -7,6 +7,7 @@ import TaskItem from './TaskItem';
 import TaskForm from './TaskForm';
 import GroupForm from './GroupForm';
 import GroupArrange from './GroupArrange';
+import SubtaskEditForm from './SubtaskEditForm';
 import { useTheme } from '../utils/theme';
 
 // Icon center: group padding (14) + half icon width (22) = 36
@@ -22,6 +23,10 @@ export default function Timeline({ selectedDate }) {
   const [activeGroupName, setActiveGroupName] = useState('');
   const [editTask, setEditTask] = useState(null);
   const [arrangeOpen, setArrangeOpen] = useState(false);
+  const [subtaskFormOpen, setSubtaskFormOpen] = useState(false);
+  const [editSubtaskGroupId, setEditSubtaskGroupId] = useState(null);
+  const [editSubtaskTaskId, setEditSubtaskTaskId] = useState(null);
+  const [editSubtask, setEditSubtask] = useState(null);
 
   const dateKey = selectedDate.toISOString().split('T')[0];
 
@@ -51,6 +56,13 @@ export default function Timeline({ selectedDate }) {
   const openAddGroup = () => {
     setEditGroup(null);
     setGroupFormOpen(true);
+  };
+
+  const openEditSubtask = (groupId, task, subtask) => {
+    setEditSubtaskGroupId(groupId);
+    setEditSubtaskTaskId(task.id);
+    setEditSubtask(subtask);
+    setSubtaskFormOpen(true);
   };
 
   return (
@@ -126,6 +138,7 @@ export default function Timeline({ selectedDate }) {
                     groupId={group.id}
                     dateKey={dateKey}
                     onEdit={(t) => openEditTask(group.id, group.name, t)}
+                    onEditSubtask={(t, st) => openEditSubtask(group.id, t, st)}
                   />
                 ))}
                 {visibleTasks.length === 0 && (
@@ -191,6 +204,13 @@ export default function Timeline({ selectedDate }) {
         visible={arrangeOpen}
         onClose={() => setArrangeOpen(false)}
         selectedDate={selectedDate}
+      />
+      <SubtaskEditForm
+        visible={subtaskFormOpen}
+        onClose={() => setSubtaskFormOpen(false)}
+        groupId={editSubtaskGroupId}
+        taskId={editSubtaskTaskId}
+        editSubtask={editSubtask}
       />
     </View>
   );

@@ -6,7 +6,7 @@ import { useTheme } from '../utils/theme';
 const CIRCLE_SIZE = 22;
 const CIRCLE_LEFT = -33;
 
-export default function TaskItem({ task, groupId, dateKey, onEdit }) {
+export default function TaskItem({ task, groupId, dateKey, onEdit, onEditSubtask }) {
   const colors = useTheme();
   const { state, dispatch } = usePlanner();
   const isCompleted = state.completedTasks[dateKey]?.[task.id] || false;
@@ -15,8 +15,10 @@ export default function TaskItem({ task, groupId, dateKey, onEdit }) {
   const subtasks = task.subtasks || [];
   const hasSubtasks = subtasks.length > 0;
 
+  const subtaskIds = subtasks.map((st) => st.id);
+
   const handleTap = () => {
-    dispatch({ type: 'TOGGLE_TASK', payload: { taskId: task.id, dateKey } });
+    dispatch({ type: 'TOGGLE_TASK', payload: { taskId: task.id, dateKey, subtaskIds } });
   };
 
   const handleLongPress = () => {
@@ -24,7 +26,10 @@ export default function TaskItem({ task, groupId, dateKey, onEdit }) {
   };
 
   const toggleSubtask = (subtaskId) => {
-    dispatch({ type: 'TOGGLE_SUBTASK', payload: { subtaskId, dateKey } });
+    dispatch({
+      type: 'TOGGLE_SUBTASK',
+      payload: { subtaskId, dateKey, taskId: task.id, allSubtaskIds: subtaskIds },
+    });
   };
 
   const completedCount = subtasks.filter(
@@ -113,6 +118,8 @@ export default function TaskItem({ task, groupId, dateKey, onEdit }) {
               <Pressable
                 key={st.id}
                 onPress={() => toggleSubtask(st.id)}
+                onLongPress={() => onEditSubtask && onEditSubtask(task, st)}
+                delayLongPress={400}
                 style={({ pressed }) => [
                   styles.subtaskRow,
                   { backgroundColor: pressed ? colors.surface : 'transparent' },

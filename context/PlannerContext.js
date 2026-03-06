@@ -78,10 +78,16 @@ function reducer(state, action) {
     }
 
     case 'TOGGLE_SUBTASK': {
-      const { subtaskId, dateKey } = action.payload;
+      const { subtaskId, dateKey, taskId, allSubtaskIds } = action.payload;
       const completed = { ...state.completedTasks };
       if (!completed[dateKey]) completed[dateKey] = {};
+      completed[dateKey] = { ...completed[dateKey] };
       completed[dateKey][subtaskId] = !completed[dateKey][subtaskId];
+      // Auto-complete parent task when all subtasks are done
+      if (taskId && allSubtaskIds) {
+        const allDone = allSubtaskIds.every((id) => completed[dateKey][id]);
+        completed[dateKey][taskId] = allDone;
+      }
       return { ...state, completedTasks: completed };
     }
 
@@ -95,10 +101,18 @@ function reducer(state, action) {
     }
 
     case 'TOGGLE_TASK': {
-      const { taskId, dateKey } = action.payload;
+      const { taskId, dateKey, subtaskIds } = action.payload;
       const completed = { ...state.completedTasks };
       if (!completed[dateKey]) completed[dateKey] = {};
-      completed[dateKey][taskId] = !completed[dateKey][taskId];
+      completed[dateKey] = { ...completed[dateKey] };
+      const newVal = !completed[dateKey][taskId];
+      completed[dateKey][taskId] = newVal;
+      // When completing a task, also complete all its subtasks
+      if (newVal && subtaskIds) {
+        subtaskIds.forEach((id) => {
+          completed[dateKey][id] = true;
+        });
+      }
       return { ...state, completedTasks: completed };
     }
 
