@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../utils/theme';
+import CalendarModal from './CalendarModal';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function DateHeader({ selectedDate, onDateChange }) {
   const colors = useTheme();
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -23,18 +26,16 @@ export default function DateHeader({ selectedDate, onDateChange }) {
     onDateChange(d);
   };
 
-  const goToday = () => onDateChange(new Date(today));
-
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <TouchableOpacity
         onPress={goBack}
         style={[styles.navBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
       >
-        <Text style={[styles.navText, { color: colors.text }]}>{'<'}</Text>
+        <View style={[styles.chevron, styles.chevronLeft, { borderColor: colors.text }]} />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={goToday} style={styles.center}>
+      <TouchableOpacity onPress={() => setCalendarOpen(true)} style={styles.center}>
         <Text style={[styles.dayName, { color: colors.text }]}>
           {DAYS[selectedDate.getDay()]}
         </Text>
@@ -52,8 +53,15 @@ export default function DateHeader({ selectedDate, onDateChange }) {
         onPress={goForward}
         style={[styles.navBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
       >
-        <Text style={[styles.navText, { color: colors.text }]}>{'>'}</Text>
+        <View style={[styles.chevron, styles.chevronRight, { borderColor: colors.text }]} />
       </TouchableOpacity>
+
+      <CalendarModal
+        visible={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        selectedDate={selectedDate}
+        onSelect={onDateChange}
+      />
     </View>
   );
 }
@@ -74,9 +82,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  navText: {
-    fontSize: 16,
-    fontWeight: '600',
+  chevron: {
+    width: 10,
+    height: 10,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+  },
+  chevronLeft: {
+    transform: [{ rotate: '-135deg' }],
+    marginLeft: 3,
+  },
+  chevronRight: {
+    transform: [{ rotate: '45deg' }],
+    marginRight: 3,
   },
   center: {
     alignItems: 'center',
