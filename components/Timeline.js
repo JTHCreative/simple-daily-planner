@@ -73,7 +73,8 @@ export default function Timeline({ selectedDate }) {
             {/* Group header card */}
             <TouchableOpacity
               style={[styles.groupHeader, { backgroundColor: colors.surface }]}
-              onPress={() => openEditGroup(group)}
+              onLongPress={() => openEditGroup(group)}
+              delayLongPress={400}
               activeOpacity={0.7}
             >
               <View style={[styles.groupIcon, { backgroundColor: colors.primaryLight }]}>
