@@ -50,6 +50,7 @@ function reducer(state, action) {
         id: uuid(),
         name: action.payload.name,
         description: action.payload.description || '',
+        subtasks: action.payload.subtasks || [],
         createdDate: action.payload.createdDate || new Date().toISOString().split('T')[0],
       };
       const groups = state.groups.map((g) =>
@@ -70,6 +71,14 @@ function reducer(state, action) {
           : g
       );
       return { ...state, groups };
+    }
+
+    case 'TOGGLE_SUBTASK': {
+      const { subtaskId, dateKey } = action.payload;
+      const completed = { ...state.completedTasks };
+      if (!completed[dateKey]) completed[dateKey] = {};
+      completed[dateKey][subtaskId] = !completed[dateKey][subtaskId];
+      return { ...state, completedTasks: completed };
     }
 
     case 'DELETE_TASK': {
