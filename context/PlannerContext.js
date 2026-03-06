@@ -50,7 +50,6 @@ function reducer(state, action) {
         id: uuid(),
         name: action.payload.name,
         description: action.payload.description || '',
-        recurrence: action.payload.recurrence || { type: 'once' },
         createdDate: action.payload.createdDate || new Date().toISOString().split('T')[0],
       };
       const groups = state.groups.map((g) =>

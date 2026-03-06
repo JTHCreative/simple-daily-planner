@@ -66,9 +66,7 @@ export default function Timeline({ selectedDate }) {
 
       {visibleGroups.map((group, index) => {
         const icon = getIconById(group.icon);
-        const visibleTasks = group.tasks.filter((t) =>
-          shouldShowOnDate(t.recurrence, selectedDate, t.createdDate)
-        );
+        const visibleTasks = group.tasks;
         const isLast = index === visibleGroups.length - 1;
 
         return (

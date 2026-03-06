@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
-import RecurrencePicker from './RecurrencePicker';
 import { usePlanner } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
@@ -18,17 +17,14 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
   const { dispatch } = usePlanner();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [recurrence, setRecurrence] = useState({ type: 'once' });
 
   useEffect(() => {
     if (editTask) {
       setName(editTask.name);
       setDescription(editTask.description || '');
-      setRecurrence(editTask.recurrence || { type: 'once' });
     } else {
       setName('');
       setDescription('');
-      setRecurrence({ type: 'once' });
     }
   }, [editTask, visible]);
 
@@ -37,7 +33,7 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
     if (editTask) {
       dispatch({
         type: 'UPDATE_TASK',
-        payload: { groupId, taskId: editTask.id, updates: { name: name.trim(), description: description.trim(), recurrence } },
+        payload: { groupId, taskId: editTask.id, updates: { name: name.trim(), description: description.trim() } },
       });
     } else {
       const createdDate = selectedDate
@@ -45,7 +41,7 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
         : new Date().toISOString().split('T')[0];
       dispatch({
         type: 'ADD_TASK',
-        payload: { groupId, name: name.trim(), description: description.trim(), recurrence, createdDate },
+        payload: { groupId, name: name.trim(), description: description.trim(), createdDate },
       });
     }
     onClose();
@@ -104,9 +100,6 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
           placeholderTextColor={colors.textMuted}
           multiline
         />
-
-        <Text style={[styles.label, { color: colors.textSecondary }]}>REPEATS</Text>
-        <RecurrencePicker value={recurrence} onChange={setRecurrence} />
 
         <View style={styles.actions}>
           {editTask && (

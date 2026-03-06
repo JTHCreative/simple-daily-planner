@@ -1,6 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { usePlanner } from '../context/PlannerContext';
-import { getRecurrenceLabel } from '../utils/recurrence';
 import { useTheme } from '../utils/theme';
 
 // Circle sits on the timeline line.
@@ -22,8 +21,6 @@ export default function TaskItem({ task, groupId, dateKey, onEdit }) {
   const handleLongPress = () => {
     onEdit(task);
   };
-
-  const recLabel = getRecurrenceLabel(task.recurrence);
 
   return (
     <Pressable
@@ -74,9 +71,6 @@ export default function TaskItem({ task, groupId, dateKey, onEdit }) {
             {task.description}
           </Text>
         ) : null}
-        {recLabel !== 'One time' && (
-          <Text style={[styles.recurrence, { color: colors.textMuted }]}>{recLabel}</Text>
-        )}
       </View>
     </Pressable>
   );
@@ -123,8 +117,5 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 12,
     fontStyle: 'italic',
-  },
-  recurrence: {
-    fontSize: 11,
   },
 });
