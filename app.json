@@ -4,15 +4,22 @@
     "slug": "simple-daily-planner",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "scheme": "dailyplanner",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#E53935"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.dailyplanner.app"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#6366f1"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#E53935"
       },
       "package": "com.dailyplanner.app"
     },
