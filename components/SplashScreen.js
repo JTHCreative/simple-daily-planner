@@ -43,7 +43,10 @@ export default function SplashScreen({ onFinish }) {
             strokeLinejoin="round"
           />
         </Svg>
-        <Text style={styles.title}>My Planner</Text>
+        <View style={styles.textGroup}>
+          <Text style={styles.title}>My Planner</Text>
+          <Text style={styles.subtitle}>Task Manager</Text>
+        </View>
       </Animated.View>
     </View>
   );
@@ -60,10 +63,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 24,
   },
+  textGroup: {
+    alignItems: 'center',
+    gap: 6,
+  },
   title: {
     color: '#FFFFFF',
     fontSize: 32,
-    fontWeight: '300',
+    fontWeight: '700',
     letterSpacing: 4,
+  },
+  subtitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '300',
+    letterSpacing: 2,
+    opacity: 0.85,
   },
 });
