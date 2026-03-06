@@ -189,7 +189,8 @@ function reducer(state, action) {
           const subtasks = (t.subtasks || []).map((st) =>
             st.id === subtaskId ? { ...st, completed: !st.completed } : st
           );
-          return { ...t, subtasks };
+          const allDone = subtasks.length > 0 && subtasks.every((st) => st.completed);
+          return { ...t, subtasks, completed: allDone };
         });
         return { ...g, tasks };
       });
