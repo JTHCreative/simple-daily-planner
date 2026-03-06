@@ -8,68 +8,55 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../utils/theme';
 
 export default function BottomSheet({ visible, onClose, title, children }) {
   const colors = useTheme();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.flex}
         >
-          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.sheet, { backgroundColor: colors.bg }]}>
-              <View style={styles.header}>
-                <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-                <TouchableOpacity
-                  onPress={onClose}
-                  style={[styles.closeBtn, { backgroundColor: colors.surface }]}
-                >
-                  <Text style={[styles.closeText, { color: colors.textSecondary }]}>✕</Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView
-                style={styles.body}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                {children}
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={[styles.closeBtn, { backgroundColor: colors.surface }]}
+            >
+              <Text style={[styles.closeText, { color: colors.textSecondary }]}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.body}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
         </KeyboardAvoidingView>
-      </TouchableOpacity>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
   },
-  keyboardView: {
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
+  flex: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 12,
     paddingBottom: 8,
   },
   title: {
@@ -89,6 +76,6 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: 40,
   },
 });
