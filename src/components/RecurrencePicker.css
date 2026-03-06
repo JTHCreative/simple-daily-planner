@@ -1,0 +1,53 @@
+.recurrence-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recurrence-types {
+  display: flex;
+  gap: 6px;
+}
+
+.recurrence-type {
+  flex: 1;
+  padding: 8px 4px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.recurrence-type.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.day-selector {
+  display: flex;
+  gap: 4px;
+}
+
+.day-btn {
+  flex: 1;
+  padding: 8px 2px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.day-btn.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}

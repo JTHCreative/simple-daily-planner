@@ -1,0 +1,62 @@
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.task-item:active {
+  transform: scale(0.98);
+  background: var(--surface);
+}
+
+.task-item.completed {
+  opacity: 0.6;
+}
+
+.task-checkbox {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.task-checkbox.checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.task-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.task-name {
+  font-size: 15px;
+  color: var(--text);
+  transition: all 0.2s ease;
+}
+
+.task-name.struck {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.task-recurrence {
+  font-size: 11px;
+  color: var(--text-muted);
+}

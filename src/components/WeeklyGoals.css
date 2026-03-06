@@ -1,0 +1,135 @@
+.weekly-goals {
+  margin: 0 16px 16px;
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.weekly-goals-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.weekly-goals-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.goal-progress {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.goals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.goal-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.goal-item:active {
+  transform: scale(0.98);
+}
+
+.goal-item.completed {
+  opacity: 0.6;
+}
+
+.goal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.goal-dot.filled {
+  background: var(--primary);
+}
+
+.goal-item span {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.goal-item span.struck {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.goal-delete {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-goal-form {
+  display: flex;
+  gap: 8px;
+}
+
+.goal-input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+
+.goal-input:focus {
+  border-color: var(--primary);
+}
+
+.goal-add-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.goal-add-btn:disabled {
+  opacity: 0.4;
+}
