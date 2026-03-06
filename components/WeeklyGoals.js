@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet } from 'react-native';
 import { usePlanner } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
-import BottomSheet from './BottomSheet';
+import WeeklyGoalForm from './WeeklyGoalForm';
+import WeeklyTaskForm from './WeeklyTaskForm';
 
 function getWeekKey(date) {
   const d = new Date(date);
@@ -15,12 +16,21 @@ function getWeekKey(date) {
 export default function WeeklyGoals({ selectedDate }) {
   const colors = useTheme();
   const { state, dispatch } = usePlanner();
-  const [newGoal, setNewGoal] = useState('');
   const [expandedGoals, setExpandedGoals] = useState({});
+  const [expandedTasks, setExpandedTasks] = useState({});
+
+  // Goal form state
+  const [goalFormVisible, setGoalFormVisible] = useState(false);
   const [editGoal, setEditGoal] = useState(null);
-  const [editText, setEditText] = useState('');
-  const [editSubtasks, setEditSubtasks] = useState([]);
-  const [newSubtask, setNewSubtask] = useState('');
+
+  // Task form state
+  const [taskFormVisible, setTaskFormVisible] = useState(false);
+  const [taskFormGoalId, setTaskFormGoalId] = useState(null);
+  const [taskFormGoalName, setTaskFormGoalName] = useState('');
+  const [editTask, setEditTask] = useState(null);
+
+  // Quick-add goal
+  const [newGoal, setNewGoal] = useState('');
 
   const weekKey = getWeekKey(selectedDate);
   const goals = state.weeklyGoals.filter((g) => g.weekKey === weekKey);
@@ -31,51 +41,44 @@ export default function WeeklyGoals({ selectedDate }) {
     setNewGoal('');
   };
 
-  const toggleExpand = (goalId) => {
+  const toggleGoalExpand = (goalId) => {
     setExpandedGoals((prev) => ({ ...prev, [goalId]: !prev[goalId] }));
   };
 
-  const openEdit = (goal) => {
+  const toggleTaskExpand = (taskId) => {
+    setExpandedTasks((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
+
+  const openEditGoal = (goal) => {
     setEditGoal(goal);
-    setEditText(goal.text);
-    setEditSubtasks(goal.subtasks || []);
-    setNewSubtask('');
+    setGoalFormVisible(true);
   };
 
-  const closeEdit = () => {
+  const openNewGoal = () => {
     setEditGoal(null);
+    setGoalFormVisible(true);
   };
 
-  const addEditSubtask = () => {
-    const text = newSubtask.trim();
-    if (!text) return;
-    setEditSubtasks((prev) => [
-      ...prev,
-      { id: `gst-${Date.now()}-${prev.length}`, name: text, completed: false },
-    ]);
-    setNewSubtask('');
+  const openAddTask = (goal) => {
+    setTaskFormGoalId(goal.id);
+    setTaskFormGoalName(goal.text);
+    setEditTask(null);
+    setTaskFormVisible(true);
   };
 
-  const removeEditSubtask = (id) => {
-    setEditSubtasks((prev) => prev.filter((s) => s.id !== id));
+  const openEditTask = (goal, task) => {
+    setTaskFormGoalId(goal.id);
+    setTaskFormGoalName(goal.text);
+    setEditTask(task);
+    setTaskFormVisible(true);
   };
 
-  const saveEdit = () => {
-    if (!editGoal || !editText.trim()) return;
-    dispatch({
-      type: 'UPDATE_WEEKLY_GOAL',
-      payload: { id: editGoal.id, updates: { text: editText.trim(), subtasks: editSubtasks } },
-    });
-    closeEdit();
-  };
-
-  const deleteEdit = () => {
-    if (!editGoal) return;
-    dispatch({ type: 'DELETE_WEEKLY_GOAL', payload: editGoal.id });
-    closeEdit();
-  };
-
-  const completedCount = goals.filter((g) => g.completed).length;
+  // Count completed tasks across all goals
+  const totalTasks = goals.reduce((sum, g) => sum + (g.tasks || []).length, 0);
+  const completedTasks = goals.reduce(
+    (sum, g) => sum + (g.tasks || []).filter((t) => t.completed).length,
+    0
+  );
 
   return (
     <View style={styles.container}>
@@ -83,133 +86,204 @@ export default function WeeklyGoals({ selectedDate }) {
         <Text style={[styles.title, { color: colors.text }]}>Weekly Goals</Text>
         <View style={[styles.progressBadge, { backgroundColor: colors.primaryLight }]}>
           <Text style={[styles.progressText, { color: colors.primary }]}>
-            {completedCount}/{goals.length}
+            {completedTasks}/{totalTasks}
           </Text>
         </View>
       </View>
 
-      {goals.length > 0 && (
-        <View style={[styles.list, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {goals.map((goal) => {
-            const subtasks = goal.subtasks || [];
-            const hasSubtasks = subtasks.length > 0;
-            const isExpanded = expandedGoals[goal.id];
-            const stDone = subtasks.filter((st) => st.completed).length;
+      {goals.map((goal) => {
+        const tasks = goal.tasks || [];
+        const hasTasks = tasks.length > 0;
+        const isExpanded = expandedGoals[goal.id];
+        const tasksDone = tasks.filter((t) => t.completed).length;
+        const goalIcon = goal.icon || '🎯';
 
-            return (
-              <View key={goal.id}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.goalItem,
-                    { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 },
+        return (
+          <View
+            key={goal.id}
+            style={[styles.goalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            {/* Goal Header */}
+            <Pressable
+              style={({ pressed }) => [styles.goalHeader, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={() => toggleGoalExpand(goal.id)}
+              onLongPress={() => openEditGoal(goal)}
+              delayLongPress={400}
+            >
+              <View style={[styles.goalIcon, { backgroundColor: colors.primaryLight }]}>
+                <Text style={styles.goalIconText}>{goalIcon}</Text>
+              </View>
+              <View style={styles.goalInfo}>
+                <Text
+                  style={[
+                    styles.goalText,
+                    {
+                      color: goal.completed ? colors.textSecondary : colors.text,
+                      textDecorationLine: goal.completed ? 'line-through' : 'none',
+                    },
                   ]}
-                  onPress={() => dispatch({ type: 'TOGGLE_WEEKLY_GOAL', payload: goal.id })}
-                  onLongPress={() => openEdit(goal)}
-                  delayLongPress={400}
+                  numberOfLines={2}
                 >
+                  {goal.text}
+                </Text>
+                {hasTasks && (
+                  <Text style={[styles.goalMeta, { color: colors.textMuted }]}>
+                    {tasksDone}/{tasks.length} tasks
+                  </Text>
+                )}
+              </View>
+              <View style={styles.goalActions}>
+                <TouchableOpacity
+                  onPress={() => openAddTask(goal)}
+                  style={[styles.addTaskBtn, { backgroundColor: colors.primaryLight }]}
+                  hitSlop={6}
+                >
+                  <Text style={[styles.addTaskBtnText, { color: colors.primary }]}>+</Text>
+                </TouchableOpacity>
+                {hasTasks && (
                   <View
                     style={[
-                      styles.dot,
-                      {
-                        borderColor: goal.completed ? colors.primary : colors.border,
-                        backgroundColor: goal.completed ? colors.primary : 'transparent',
-                      },
+                      styles.chevron,
+                      isExpanded ? styles.chevronUp : styles.chevronDown,
+                      { borderColor: colors.textMuted },
                     ]}
-                  >
-                    {goal.completed && <Text style={styles.dotCheck}>✓</Text>}
-                  </View>
-                  <View style={styles.goalContent}>
-                    <Text
-                      style={[
-                        styles.goalText,
-                        {
-                          color: goal.completed ? colors.textSecondary : colors.text,
-                          textDecorationLine: goal.completed ? 'line-through' : 'none',
-                        },
-                      ]}
-                    >
-                      {goal.text}
-                    </Text>
-                    {hasSubtasks && !isExpanded && (
-                      <Text style={[styles.subtaskCount, { color: colors.textMuted }]}>
-                        {stDone}/{subtasks.length} sub-tasks
-                      </Text>
-                    )}
-                  </View>
-                  {hasSubtasks && (
-                    <Pressable
-                      onPress={() => toggleExpand(goal.id)}
-                      style={styles.expandBtn}
-                      hitSlop={8}
-                    >
-                      <View
-                        style={[
-                          styles.chevron,
-                          isExpanded ? styles.chevronUp : styles.chevronDown,
-                          { borderColor: colors.textMuted },
-                        ]}
-                      />
-                    </Pressable>
-                  )}
-                  {!hasSubtasks && (
-                    <TouchableOpacity
-                      onPress={() => dispatch({ type: 'DELETE_WEEKLY_GOAL', payload: goal.id })}
-                      style={styles.deleteBtn}
-                    >
-                      <Text style={[styles.deleteText, { color: colors.textMuted }]}>✕</Text>
-                    </TouchableOpacity>
-                  )}
-                </Pressable>
+                  />
+                )}
+              </View>
+            </Pressable>
 
-                {hasSubtasks && isExpanded && (
-                  <View style={[styles.subtaskList, { borderBottomColor: colors.border }]}>
-                    {subtasks.map((st) => (
+            {/* Expanded Tasks */}
+            {hasTasks && isExpanded && (
+              <View style={[styles.taskList, { borderTopColor: colors.border }]}>
+                {tasks.map((task) => {
+                  const subtasks = task.subtasks || [];
+                  const hasSubtasks = subtasks.length > 0;
+                  const isTaskExpanded = expandedTasks[task.id];
+                  const stDone = subtasks.filter((st) => st.completed).length;
+
+                  return (
+                    <View key={task.id}>
+                      {/* Task Row */}
                       <Pressable
-                        key={st.id}
-                        onPress={() =>
-                          dispatch({
-                            type: 'TOGGLE_GOAL_SUBTASK',
-                            payload: { goalId: goal.id, subtaskId: st.id },
-                          })
-                        }
                         style={({ pressed }) => [
-                          styles.subtaskRow,
+                          styles.taskRow,
                           { opacity: pressed ? 0.7 : 1 },
                         ]}
+                        onPress={() =>
+                          dispatch({
+                            type: 'TOGGLE_GOAL_TASK',
+                            payload: { goalId: goal.id, taskId: task.id },
+                          })
+                        }
+                        onLongPress={() => openEditTask(goal, task)}
+                        delayLongPress={400}
                       >
                         <View
                           style={[
-                            styles.subtaskCheck,
+                            styles.taskCheck,
                             {
-                              borderColor: st.completed ? colors.primary : colors.border,
-                              backgroundColor: st.completed ? colors.primary : 'transparent',
+                              borderColor: task.completed ? colors.primary : colors.border,
+                              backgroundColor: task.completed ? colors.primary : 'transparent',
                             },
                           ]}
                         >
-                          {st.completed && <Text style={styles.subtaskCheckmark}>✓</Text>}
+                          {task.completed && <Text style={styles.taskCheckmark}>✓</Text>}
                         </View>
-                        <Text
-                          style={[
-                            styles.subtaskName,
-                            {
-                              color: st.completed ? colors.textSecondary : colors.text,
-                              textDecorationLine: st.completed ? 'line-through' : 'none',
-                            },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {st.name}
-                        </Text>
+                        <View style={styles.taskInfo}>
+                          <Text
+                            style={[
+                              styles.taskName,
+                              {
+                                color: task.completed ? colors.textSecondary : colors.text,
+                                textDecorationLine: task.completed ? 'line-through' : 'none',
+                              },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {task.name}
+                          </Text>
+                          {task.description && !isTaskExpanded ? (
+                            <Text style={[styles.taskDesc, { color: colors.textMuted }]} numberOfLines={1}>
+                              {task.description}
+                            </Text>
+                          ) : null}
+                          {hasSubtasks && !isTaskExpanded && (
+                            <Text style={[styles.subtaskCount, { color: colors.textMuted }]}>
+                              {stDone}/{subtasks.length} sub-tasks
+                            </Text>
+                          )}
+                        </View>
+                        {hasSubtasks && (
+                          <Pressable
+                            onPress={() => toggleTaskExpand(task.id)}
+                            style={styles.expandBtn}
+                            hitSlop={8}
+                          >
+                            <View
+                              style={[
+                                styles.chevron,
+                                isTaskExpanded ? styles.chevronUp : styles.chevronDown,
+                                { borderColor: colors.textMuted },
+                              ]}
+                            />
+                          </Pressable>
+                        )}
                       </Pressable>
-                    ))}
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </View>
-      )}
 
+                      {/* Expanded Subtasks */}
+                      {hasSubtasks && isTaskExpanded && (
+                        <View style={styles.subtaskList}>
+                          {subtasks.map((st) => (
+                            <Pressable
+                              key={st.id}
+                              onPress={() =>
+                                dispatch({
+                                  type: 'TOGGLE_GOAL_SUBTASK',
+                                  payload: { goalId: goal.id, taskId: task.id, subtaskId: st.id },
+                                })
+                              }
+                              style={({ pressed }) => [
+                                styles.subtaskRow,
+                                { opacity: pressed ? 0.7 : 1 },
+                              ]}
+                            >
+                              <View
+                                style={[
+                                  styles.subtaskCheck,
+                                  {
+                                    borderColor: st.completed ? colors.primary : colors.border,
+                                    backgroundColor: st.completed ? colors.primary : 'transparent',
+                                  },
+                                ]}
+                              >
+                                {st.completed && <Text style={styles.subtaskCheckmark}>✓</Text>}
+                              </View>
+                              <Text
+                                style={[
+                                  styles.subtaskName,
+                                  {
+                                    color: st.completed ? colors.textSecondary : colors.text,
+                                    textDecorationLine: st.completed ? 'line-through' : 'none',
+                                  },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {st.name}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        );
+      })}
+
+      {/* Quick-add goal input */}
       <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <TextInput
           style={[styles.input, { color: colors.text }]}
@@ -230,80 +304,25 @@ export default function WeeklyGoals({ selectedDate }) {
       </View>
 
       <Text style={[styles.hint, { color: colors.textMuted }]}>
-        Long-press a goal to add sub-tasks
+        Long-press a goal or task to edit it
       </Text>
 
-      {/* Edit Goal Bottom Sheet */}
-      <BottomSheet visible={!!editGoal} onClose={closeEdit} title="Edit Goal">
-        <View style={styles.editForm}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>GOAL</Text>
-          <TextInput
-            style={[
-              styles.editInput,
-              { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
-            ]}
-            value={editText}
-            onChangeText={setEditText}
-            placeholder="Goal text..."
-            placeholderTextColor={colors.textMuted}
-          />
+      {/* Goal Edit Form */}
+      <WeeklyGoalForm
+        visible={goalFormVisible}
+        onClose={() => setGoalFormVisible(false)}
+        editGoal={editGoal}
+        weekKey={weekKey}
+      />
 
-          <Text style={[styles.label, { color: colors.textSecondary }]}>SUB-TASKS</Text>
-
-          {editSubtasks.map((st) => (
-            <View
-              key={st.id}
-              style={[styles.editSubtaskRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            >
-              <Text style={[styles.editSubtaskText, { color: colors.text }]} numberOfLines={1}>
-                {st.name}
-              </Text>
-              <TouchableOpacity onPress={() => removeEditSubtask(st.id)} style={styles.removeBtn} hitSlop={8}>
-                <Text style={[styles.removeText, { color: colors.danger }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-
-          <View style={styles.addSubtaskRow}>
-            <TextInput
-              style={[
-                styles.editInput,
-                styles.subtaskInput,
-                { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
-              ]}
-              value={newSubtask}
-              onChangeText={setNewSubtask}
-              placeholder="Add a sub-task..."
-              placeholderTextColor={colors.textMuted}
-              onSubmitEditing={addEditSubtask}
-              returnKeyType="done"
-            />
-            <TouchableOpacity
-              style={[styles.addSubBtn, { backgroundColor: colors.primary, opacity: newSubtask.trim() ? 1 : 0.4 }]}
-              onPress={addEditSubtask}
-              disabled={!newSubtask.trim()}
-            >
-              <Text style={styles.addSubBtnText}>+</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.editActions}>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.dangerLight }]}
-              onPress={deleteEdit}
-            >
-              <Text style={[styles.actionBtnText, { color: colors.danger }]}>Delete</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.primary, opacity: editText.trim() ? 1 : 0.5 }]}
-              onPress={saveEdit}
-              disabled={!editText.trim()}
-            >
-              <Text style={[styles.actionBtnText, { color: '#fff' }]}>Save</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </BottomSheet>
+      {/* Task Edit Form */}
+      <WeeklyTaskForm
+        visible={taskFormVisible}
+        onClose={() => setTaskFormVisible(false)}
+        goalId={taskFormGoalId}
+        goalName={taskFormGoalName}
+        editTask={editTask}
+      />
     </View>
   );
 }
@@ -312,12 +331,13 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     paddingBottom: 100,
+    gap: 12,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 4,
   },
   title: {
     fontSize: 18,
@@ -332,31 +352,70 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  list: {
+  // Goal card
+  goalCard: {
     borderRadius: 14,
     borderWidth: 1,
     overflow: 'hidden',
-    marginBottom: 16,
   },
-  goalItem: {
+  goalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     gap: 12,
-    borderBottomWidth: 0.5,
   },
-  goalContent: {
+  goalIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalIconText: {
+    fontSize: 20,
+  },
+  goalInfo: {
     flex: 1,
     gap: 2,
   },
   goalText: {
     fontSize: 15,
+    fontWeight: '600',
   },
-  subtaskCount: {
-    fontSize: 11,
+  goalMeta: {
+    fontSize: 12,
   },
-  dot: {
+  goalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addTaskBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addTaskBtnText: {
+    fontSize: 18,
+    fontWeight: '500',
+    marginTop: -1,
+  },
+  // Task list
+  taskList: {
+    borderTopWidth: 1,
+    paddingVertical: 4,
+  },
+  taskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  taskCheck: {
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -364,16 +423,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dotCheck: {
+  taskCheckmark: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
   },
-  deleteBtn: {
-    padding: 4,
+  taskInfo: {
+    flex: 1,
+    gap: 2,
   },
-  deleteText: {
+  taskName: {
     fontSize: 14,
+    fontWeight: '500',
+  },
+  taskDesc: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  subtaskCount: {
+    fontSize: 11,
   },
   expandBtn: {
     width: 36,
@@ -381,32 +449,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chevron: {
-    width: 10,
-    height: 10,
-    borderTopWidth: 2,
-    borderRightWidth: 2,
-  },
-  chevronDown: {
-    transform: [{ rotate: '135deg' }],
-    marginBottom: 3,
-  },
-  chevronUp: {
-    transform: [{ rotate: '-45deg' }],
-    marginTop: 3,
-  },
+  // Subtask list
   subtaskList: {
-    paddingLeft: 50,
+    paddingLeft: 48,
     paddingRight: 16,
-    paddingTop: 4,
-    paddingBottom: 12,
-    gap: 4,
-    borderBottomWidth: 0.5,
+    paddingBottom: 8,
+    gap: 2,
   },
   subtaskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 6,
     gap: 10,
   },
   subtaskCheck: {
@@ -426,6 +479,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
   },
+  // Shared
+  chevron: {
+    width: 10,
+    height: 10,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+  },
+  chevronDown: {
+    transform: [{ rotate: '135deg' }],
+    marginBottom: 3,
+  },
+  chevronUp: {
+    transform: [{ rotate: '-45deg' }],
+    marginTop: 3,
+  },
+  // Input
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -456,81 +525,5 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 12,
     textAlign: 'center',
-    marginTop: 10,
-  },
-  // Edit form styles
-  editForm: {
-    gap: 12,
-    paddingBottom: 32,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    marginTop: 4,
-  },
-  editInput: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    fontSize: 16,
-  },
-  editSubtaskRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  editSubtaskText: {
-    flex: 1,
-    fontSize: 14,
-  },
-  removeBtn: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  addSubtaskRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  subtaskInput: {
-    flex: 1,
-    fontSize: 14,
-  },
-  addSubBtn: {
-    width: 44,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addSubBtnText: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '500',
-    marginTop: -1,
-  },
-  editActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  actionBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
   },
 });

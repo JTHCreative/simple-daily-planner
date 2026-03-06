@@ -102,8 +102,9 @@ function reducer(state, action) {
       const goal = {
         id: uuid(),
         text: action.payload.text,
+        icon: action.payload.icon || '🎯',
         weekKey: action.payload.weekKey,
-        subtasks: action.payload.subtasks || [],
+        tasks: action.payload.tasks || [],
         completed: false,
       };
       return { ...state, weeklyGoals: [...state.weeklyGoals, goal] };
@@ -123,20 +124,75 @@ function reducer(state, action) {
       return { ...state, weeklyGoals };
     }
 
-    case 'TOGGLE_GOAL_SUBTASK': {
-      const { goalId, subtaskId } = action.payload;
-      const weeklyGoals = state.weeklyGoals.map((g) => {
-        if (g.id !== goalId) return g;
-        const subtasks = (g.subtasks || []).map((st) =>
-          st.id === subtaskId ? { ...st, completed: !st.completed } : st
-        );
-        return { ...g, subtasks };
-      });
+    case 'DELETE_WEEKLY_GOAL': {
+      const weeklyGoals = state.weeklyGoals.filter((g) => g.id !== action.payload);
       return { ...state, weeklyGoals };
     }
 
-    case 'DELETE_WEEKLY_GOAL': {
-      const weeklyGoals = state.weeklyGoals.filter((g) => g.id !== action.payload);
+    case 'ADD_GOAL_TASK': {
+      const goalTask = {
+        id: uuid(),
+        name: action.payload.name,
+        description: action.payload.description || '',
+        subtasks: action.payload.subtasks || [],
+        completed: false,
+      };
+      const weeklyGoals = state.weeklyGoals.map((g) =>
+        g.id === action.payload.goalId ? { ...g, tasks: [...(g.tasks || []), goalTask] } : g
+      );
+      return { ...state, weeklyGoals };
+    }
+
+    case 'UPDATE_GOAL_TASK': {
+      const weeklyGoals = state.weeklyGoals.map((g) =>
+        g.id === action.payload.goalId
+          ? {
+              ...g,
+              tasks: (g.tasks || []).map((t) =>
+                t.id === action.payload.taskId ? { ...t, ...action.payload.updates } : t
+              ),
+            }
+          : g
+      );
+      return { ...state, weeklyGoals };
+    }
+
+    case 'DELETE_GOAL_TASK': {
+      const weeklyGoals = state.weeklyGoals.map((g) =>
+        g.id === action.payload.goalId
+          ? { ...g, tasks: (g.tasks || []).filter((t) => t.id !== action.payload.taskId) }
+          : g
+      );
+      return { ...state, weeklyGoals };
+    }
+
+    case 'TOGGLE_GOAL_TASK': {
+      const weeklyGoals = state.weeklyGoals.map((g) =>
+        g.id === action.payload.goalId
+          ? {
+              ...g,
+              tasks: (g.tasks || []).map((t) =>
+                t.id === action.payload.taskId ? { ...t, completed: !t.completed } : t
+              ),
+            }
+          : g
+      );
+      return { ...state, weeklyGoals };
+    }
+
+    case 'TOGGLE_GOAL_SUBTASK': {
+      const { goalId, taskId, subtaskId } = action.payload;
+      const weeklyGoals = state.weeklyGoals.map((g) => {
+        if (g.id !== goalId) return g;
+        const tasks = (g.tasks || []).map((t) => {
+          if (t.id !== taskId) return t;
+          const subtasks = (t.subtasks || []).map((st) =>
+            st.id === subtaskId ? { ...st, completed: !st.completed } : st
+          );
+          return { ...t, subtasks };
+        });
+        return { ...g, tasks };
+      });
       return { ...state, weeklyGoals };
     }
 
