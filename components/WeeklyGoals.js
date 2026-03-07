@@ -5,6 +5,7 @@ import { useTheme } from '../utils/theme';
 import WeeklyGoalForm from './WeeklyGoalForm';
 import WeeklyTaskForm from './WeeklyTaskForm';
 import TaskArrange from './TaskArrange';
+import CompletedBanner from './CompletedBanner';
 
 function getWeekKey(date) {
   const d = new Date(date);
@@ -120,6 +121,7 @@ export default function WeeklyGoals({ selectedDate }) {
         const hasTasks = tasks.length > 0;
         const isExpanded = expandedGoals[goal.id];
         const tasksDone = tasks.filter((t) => t.completed).length;
+        const allTasksDone = hasTasks && tasksDone === tasks.length;
         const goalIcon = goal.icon || '🎯';
 
         return (
@@ -127,6 +129,8 @@ export default function WeeklyGoals({ selectedDate }) {
             key={goal.id}
             style={[styles.goalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
+            <CompletedBanner isCompleted={allTasksDone} />
+
             {/* Goal Header */}
             <Pressable
               style={({ pressed }) => [styles.goalHeader, { opacity: pressed ? 0.7 : 1 }]}
@@ -402,7 +406,6 @@ const styles = StyleSheet.create({
   goalCard: {
     borderRadius: 14,
     borderWidth: 1,
-    overflow: 'hidden',
   },
   goalHeader: {
     flexDirection: 'row',

@@ -8,6 +8,7 @@ import TaskForm from './TaskForm';
 import GroupForm from './GroupForm';
 import GroupArrange from './GroupArrange';
 import SubtaskEditForm from './SubtaskEditForm';
+import CompletedBanner from './CompletedBanner';
 import { useTheme } from '../utils/theme';
 
 // Icon center: group padding (14) + half icon width (22) = 36
@@ -97,12 +98,15 @@ export default function Timeline({ selectedDate }) {
             })
           : group.tasks;
         const isLast = index === visibleGroups.length - 1;
+        const allTasksDone =
+          visibleTasks.length > 0 &&
+          visibleTasks.every((t) => completedTasks[dateKey]?.[t.id]);
 
         return (
           <View key={group.id}>
             {/* Group header card */}
             <TouchableOpacity
-              style={[styles.groupHeader, { backgroundColor: colors.groupHeaderBg }]}
+              style={[styles.groupHeader, { backgroundColor: colors.groupHeaderBg, overflow: 'visible' }]}
               onPress={() => openEditGroup(group)}
               onLongPress={() => setArrangeOpen(true)}
               delayLongPress={400}
@@ -129,6 +133,7 @@ export default function Timeline({ selectedDate }) {
               >
                 <Text style={[styles.addTaskPlus, { color: colors.addBtnText }]}>+ Add Task</Text>
               </TouchableOpacity>
+              <CompletedBanner isCompleted={allTasksDone} />
             </TouchableOpacity>
 
             {/* Task list area with timeline line on the left under the icon */}
