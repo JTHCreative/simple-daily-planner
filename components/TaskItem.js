@@ -78,7 +78,7 @@ export default function TaskItem({ task, groupId, dateKey, onEdit, onEditSubtask
                 {
                   color: isCompleted ? colors.textSecondary : colors.text,
                   textDecorationLine: isCompleted ? 'line-through' : 'none',
-                  flex: 1,
+                  flexShrink: 1,
                 },
               ]}
             >
