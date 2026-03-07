@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
+import DraggableSubtaskList from './DraggableSubtaskList';
 import { useDispatch } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 import { requestNotificationPermissions } from '../utils/notifications';
@@ -19,7 +20,6 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [subtasks, setSubtasks] = useState([]);
-  const [newSubtask, setNewSubtask] = useState('');
   const [taskRecurrence, setTaskRecurrence] = useState('daily');
   const [alarmEnabled, setAlarmEnabled] = useState(false);
   const [alarmHour, setAlarmHour] = useState(8);
@@ -47,7 +47,6 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
       setAlarmHour(8);
       setAlarmMinute(0);
     }
-    setNewSubtask('');
   }, [editTask, visible]);
 
   const handleAlarmToggle = async (value) => {
@@ -92,17 +91,6 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
     const period = h >= 12 ? 'PM' : 'AM';
     const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
     return `${displayH}:${m.toString().padStart(2, '0')} ${period}`;
-  };
-
-  const addSubtask = () => {
-    const text = newSubtask.trim();
-    if (!text) return;
-    setSubtasks((prev) => [...prev, { id: `st-${Date.now()}-${prev.length}`, name: text }]);
-    setNewSubtask('');
-  };
-
-  const removeSubtask = (id) => {
-    setSubtasks((prev) => prev.filter((s) => s.id !== id));
   };
 
   const handleSubmit = () => {
@@ -312,42 +300,17 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
 
           <Text style={[styles.label, { color: colors.textSecondary }]}>SUB-TASKS</Text>
 
-          {subtasks.map((st) => (
-            <View
-              key={st.id}
-              style={[styles.subtaskRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            >
-              <Text style={[styles.subtaskText, { color: colors.text }]} numberOfLines={1}>
-                {st.name}
-              </Text>
-              <TouchableOpacity onPress={() => removeSubtask(st.id)} style={styles.removeBtn} hitSlop={8}>
-                <Text style={[styles.removeText, { color: colors.danger }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-
-          <View style={styles.addSubtaskRow}>
-            <TextInput
-              style={[
-                styles.input,
-                styles.subtaskInput,
-                { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
-              ]}
-              value={newSubtask}
-              onChangeText={setNewSubtask}
-              placeholder="Add a sub-task..."
-              placeholderTextColor={colors.textMuted}
-              onSubmitEditing={addSubtask}
-              returnKeyType="done"
-            />
-            <TouchableOpacity
-              style={[styles.addSubBtn, { backgroundColor: colors.primary, opacity: newSubtask.trim() ? 1 : 0.4 }]}
-              onPress={addSubtask}
-              disabled={!newSubtask.trim()}
-            >
-              <Text style={styles.addSubBtnText}>+</Text>
-            </TouchableOpacity>
-          </View>
+          <DraggableSubtaskList
+            subtasks={subtasks}
+            onReorder={setSubtasks}
+            onUpdateName={(id, newName) =>
+              setSubtasks((prev) => prev.map((s) => (s.id === id ? { ...s, name: newName } : s)))
+            }
+            onRemove={(id) => setSubtasks((prev) => prev.filter((s) => s.id !== id))}
+            onAdd={(text) =>
+              setSubtasks((prev) => [...prev, { id: `st-${Date.now()}-${prev.length}`, name: text }])
+            }
+          />
 
           <View style={styles.actions}>
             {editTask && (
@@ -436,48 +399,6 @@ const styles = StyleSheet.create({
   recurrenceHint: {
     fontSize: 12,
     marginTop: -4,
-  },
-  subtaskRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  subtaskText: {
-    flex: 1,
-    fontSize: 14,
-  },
-  removeBtn: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  addSubtaskRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  subtaskInput: {
-    flex: 1,
-    fontSize: 14,
-  },
-  addSubBtn: {
-    width: 44,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addSubBtnText: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '500',
-    marginTop: -1,
   },
   alarmRow: {
     flexDirection: 'row',

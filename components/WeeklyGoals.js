@@ -4,6 +4,7 @@ import { useWeeklyGoals, useDispatch } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 import WeeklyGoalForm from './WeeklyGoalForm';
 import WeeklyTaskForm from './WeeklyTaskForm';
+import TaskArrange from './TaskArrange';
 
 function getWeekKey(date) {
   const d = new Date(date);
@@ -29,6 +30,11 @@ export default function WeeklyGoals({ selectedDate }) {
   const [taskFormGoalId, setTaskFormGoalId] = useState(null);
   const [taskFormGoalName, setTaskFormGoalName] = useState('');
   const [editTask, setEditTask] = useState(null);
+
+  // Task arrange state
+  const [taskArrangeVisible, setTaskArrangeVisible] = useState(false);
+  const [taskArrangeGoalId, setTaskArrangeGoalId] = useState(null);
+  const [taskArrangeGoalName, setTaskArrangeGoalName] = useState('');
 
   // Quick-add goal
   const [newGoal, setNewGoal] = useState('');
@@ -79,6 +85,17 @@ export default function WeeklyGoals({ selectedDate }) {
     setEditTask(null);
     setTaskFormVisible(true);
   }, []);
+
+  const openTaskArrange = useCallback((goal) => {
+    setTaskArrangeGoalId(goal.id);
+    setTaskArrangeGoalName(goal.text);
+    setTaskArrangeVisible(true);
+  }, []);
+
+  const taskArrangeTasks = useMemo(
+    () => weeklyGoals.find((g) => g.id === taskArrangeGoalId)?.tasks || [],
+    [weeklyGoals, taskArrangeGoalId]
+  );
 
   const openEditTask = useCallback((goal, task) => {
     setTaskFormGoalId(goal.id);
@@ -274,17 +291,28 @@ export default function WeeklyGoals({ selectedDate }) {
                   );
                 })}
 
-                {/* Add Task button at bottom of expanded section */}
-                <TouchableOpacity
-                  style={[styles.addTaskRow, { borderTopColor: hasTasks ? colors.border : 'transparent' }]}
-                  onPress={() => openAddTask(goal)}
-                  activeOpacity={0.6}
-                >
-                  <View style={[styles.addTaskIcon, { backgroundColor: colors.primaryLight }]}>
-                    <Text style={[styles.addTaskIconText, { color: colors.primary }]}>+</Text>
-                  </View>
-                  <Text style={[styles.addTaskLabel, { color: colors.primary }]}>Add Task</Text>
-                </TouchableOpacity>
+                {/* Add Task / Arrange buttons at bottom of expanded section */}
+                <View style={[styles.taskActions, { borderTopColor: hasTasks ? colors.border : 'transparent' }]}>
+                  <TouchableOpacity
+                    style={styles.addTaskRow}
+                    onPress={() => openAddTask(goal)}
+                    activeOpacity={0.6}
+                  >
+                    <View style={[styles.addTaskIcon, { backgroundColor: colors.primaryLight }]}>
+                      <Text style={[styles.addTaskIconText, { color: colors.primary }]}>+</Text>
+                    </View>
+                    <Text style={[styles.addTaskLabel, { color: colors.primary }]}>Add Task</Text>
+                  </TouchableOpacity>
+                  {tasks.length >= 2 && (
+                    <TouchableOpacity
+                      style={styles.arrangeTaskRow}
+                      onPress={() => openTaskArrange(goal)}
+                      activeOpacity={0.6}
+                    >
+                      <Text style={[styles.arrangeTaskLabel, { color: colors.textMuted }]}>↕ Reorder</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             )}
           </View>
@@ -330,6 +358,16 @@ export default function WeeklyGoals({ selectedDate }) {
         goalId={taskFormGoalId}
         goalName={taskFormGoalName}
         editTask={editTask}
+      />
+
+      {/* Task Arrange */}
+      <TaskArrange
+        visible={taskArrangeVisible}
+        onClose={() => setTaskArrangeVisible(false)}
+        tasks={taskArrangeTasks}
+        title={`Arrange Tasks — ${taskArrangeGoalName}`}
+        mode="goal"
+        goalId={taskArrangeGoalId}
       />
     </View>
   );
@@ -471,13 +509,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   // Add task row
+  taskActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 0.5,
+    paddingHorizontal: 16,
+  },
   addTaskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderTopWidth: 0.5,
     gap: 10,
+  },
+  arrangeTaskRow: {
+    paddingVertical: 10,
+    paddingLeft: 10,
+  },
+  arrangeTaskLabel: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   addTaskIcon: {
     width: 22,

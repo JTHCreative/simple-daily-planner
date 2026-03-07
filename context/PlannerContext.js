@@ -62,6 +62,20 @@ function reducer(state, action) {
     case 'REORDER_GROUPS':
       return { ...state, groups: action.payload };
 
+    case 'REORDER_TASKS': {
+      const groups = state.groups.map((g) =>
+        g.id === action.payload.groupId ? { ...g, tasks: action.payload.tasks } : g
+      );
+      return { ...state, groups };
+    }
+
+    case 'REORDER_GOAL_TASKS': {
+      const weeklyGoals = state.weeklyGoals.map((g) =>
+        g.id === action.payload.goalId ? { ...g, tasks: action.payload.tasks } : g
+      );
+      return { ...state, weeklyGoals };
+    }
+
     case 'ADD_TASK': {
       const taskId = uuid();
       const alarm = action.payload.alarm || { enabled: false, hour: 8, minute: 0 };
