@@ -24,6 +24,8 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
   const [alarmEnabled, setAlarmEnabled] = useState(false);
   const [alarmHour, setAlarmHour] = useState(8);
   const [alarmMinute, setAlarmMinute] = useState(0);
+  const [editingField, setEditingField] = useState(null); // 'hour' | 'minute' | null
+  const [editingValue, setEditingValue] = useState('');
 
   const isGroupDaily = groupRecurrence?.type === 'daily';
 
@@ -62,6 +64,28 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
     } else {
       setAlarmMinute((prev) => ((prev + delta + 60) % 60));
     }
+  };
+
+  const startEditing = (field) => {
+    const display = field === 'hour'
+      ? (alarmHour === 0 ? 12 : alarmHour > 12 ? alarmHour - 12 : alarmHour).toString()
+      : alarmMinute.toString();
+    setEditingValue(display);
+    setEditingField(field);
+  };
+
+  const commitEditing = () => {
+    const num = parseInt(editingValue, 10);
+    if (editingField === 'hour' && !isNaN(num) && num >= 1 && num <= 12) {
+      const isPM = alarmHour >= 12;
+      let h24 = num === 12 ? 0 : num;
+      if (isPM) h24 += 12;
+      setAlarmHour(h24);
+    } else if (editingField === 'minute' && !isNaN(num) && num >= 0 && num <= 59) {
+      setAlarmMinute(num);
+    }
+    setEditingField(null);
+    setEditingValue('');
   };
 
   const formatTimeDisplay = (h, m) => {
@@ -223,9 +247,25 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
                   <TouchableOpacity onPress={() => adjustTime('hour', 1)} style={styles.timeBtn} hitSlop={6}>
                     <Text style={[styles.timeArrow, { color: colors.primary }]}>▲</Text>
                   </TouchableOpacity>
-                  <Text style={[styles.timeValue, { color: colors.text }]}>
-                    {(alarmHour === 0 ? 12 : alarmHour > 12 ? alarmHour - 12 : alarmHour).toString().padStart(2, '0')}
-                  </Text>
+                  {editingField === 'hour' ? (
+                    <TextInput
+                      style={[styles.timeValue, styles.timeInput, { color: colors.text, borderColor: colors.primary }]}
+                      value={editingValue}
+                      onChangeText={setEditingValue}
+                      onBlur={commitEditing}
+                      onSubmitEditing={commitEditing}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      autoFocus
+                      selectTextOnFocus
+                    />
+                  ) : (
+                    <TouchableOpacity onPress={() => startEditing('hour')}>
+                      <Text style={[styles.timeValue, { color: colors.text }]}>
+                        {(alarmHour === 0 ? 12 : alarmHour > 12 ? alarmHour - 12 : alarmHour).toString().padStart(2, '0')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity onPress={() => adjustTime('hour', -1)} style={styles.timeBtn} hitSlop={6}>
                     <Text style={[styles.timeArrow, { color: colors.primary }]}>▼</Text>
                   </TouchableOpacity>
@@ -235,9 +275,25 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
                   <TouchableOpacity onPress={() => adjustTime('minute', 5)} style={styles.timeBtn} hitSlop={6}>
                     <Text style={[styles.timeArrow, { color: colors.primary }]}>▲</Text>
                   </TouchableOpacity>
-                  <Text style={[styles.timeValue, { color: colors.text }]}>
-                    {alarmMinute.toString().padStart(2, '0')}
-                  </Text>
+                  {editingField === 'minute' ? (
+                    <TextInput
+                      style={[styles.timeValue, styles.timeInput, { color: colors.text, borderColor: colors.primary }]}
+                      value={editingValue}
+                      onChangeText={setEditingValue}
+                      onBlur={commitEditing}
+                      onSubmitEditing={commitEditing}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      autoFocus
+                      selectTextOnFocus
+                    />
+                  ) : (
+                    <TouchableOpacity onPress={() => startEditing('minute')}>
+                      <Text style={[styles.timeValue, { color: colors.text }]}>
+                        {alarmMinute.toString().padStart(2, '0')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity onPress={() => adjustTime('minute', -5)} style={styles.timeBtn} hitSlop={6}>
                     <Text style={[styles.timeArrow, { color: colors.primary }]}>▼</Text>
                   </TouchableOpacity>
@@ -469,6 +525,12 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     minWidth: 44,
     textAlign: 'center',
+  },
+  timeInput: {
+    borderWidth: 1.5,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
   },
   timeSeparator: {
     fontSize: 28,
