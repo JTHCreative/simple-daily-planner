@@ -243,6 +243,7 @@ export default function Timeline({ selectedDate }) {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
+    paddingTop: 6,
     paddingBottom: 100,
   },
   empty: {
