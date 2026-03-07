@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { usePlanner } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
@@ -84,7 +85,14 @@ export default function TaskItem({ task, groupId, dateKey, onEdit, onEditSubtask
               {task.name}
             </Text>
             {task.alarm?.enabled && (
-              <Text style={[styles.bellIcon, { color: colors.primary }]}>🔔</Text>
+              <View style={styles.bellIcon}>
+                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M12 2C10.9 2 10 2.9 10 4C10 4.1 10 4.19 10.02 4.28C7.58 5.07 6 7.36 6 10V16L4 18V19H20V18L18 16V10C18 7.36 16.42 5.07 13.98 4.28C14 4.19 14 4.1 14 4C14 2.9 13.1 2 12 2ZM10 20C10 21.1 10.9 22 12 22C13.1 22 14 21.1 14 20H10Z"
+                    fill={colors.primary}
+                  />
+                </Svg>
+              </View>
             )}
           </View>
           {task.description ? (
@@ -207,7 +215,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   bellIcon: {
-    fontSize: 12,
+    marginLeft: 2,
   },
   description: {
     fontSize: 12,

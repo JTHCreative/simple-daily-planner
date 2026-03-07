@@ -4,7 +4,7 @@ import { useColorScheme } from 'react-native';
 const lightColors = {
   primary: '#dc2626',
   primaryLight: 'rgba(220, 38, 38, 0.1)',
-  bg: '#f5f5f5',
+  bg: '#ebebeb',
   surface: '#ffffff',
   text: '#1a1a1a',
   textSecondary: '#525252',
@@ -36,7 +36,7 @@ const darkColors = {
   dangerLight: 'rgba(248, 113, 113, 0.12)',
   headerBg: '#1f1f1f',
   headerText: '#f5f5f5',
-  headerIcon: '#a3a3a3',
+  headerIcon: '#ef4444',
   groupHeaderBg: '#262626',
   groupHeaderText: '#f5f5f5',
   groupHeaderMuted: '#737373',
