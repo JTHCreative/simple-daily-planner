@@ -7,7 +7,6 @@ import TaskItem from './TaskItem';
 import TaskForm from './TaskForm';
 import GroupForm from './GroupForm';
 import GroupArrange from './GroupArrange';
-import TaskArrange from './TaskArrange';
 import SubtaskEditForm from './SubtaskEditForm';
 import { useTheme } from '../utils/theme';
 
@@ -27,9 +26,6 @@ export default function Timeline({ selectedDate }) {
   const [activeGroupRecurrence, setActiveGroupRecurrence] = useState(null);
   const [editTask, setEditTask] = useState(null);
   const [arrangeOpen, setArrangeOpen] = useState(false);
-  const [taskArrangeOpen, setTaskArrangeOpen] = useState(false);
-  const [taskArrangeGroupId, setTaskArrangeGroupId] = useState(null);
-  const [taskArrangeGroupName, setTaskArrangeGroupName] = useState('');
   const [subtaskFormOpen, setSubtaskFormOpen] = useState(false);
   const [editSubtaskGroupId, setEditSubtaskGroupId] = useState(null);
   const [editSubtaskTaskId, setEditSubtaskTaskId] = useState(null);
@@ -69,17 +65,6 @@ export default function Timeline({ selectedDate }) {
   const openAddGroup = useCallback(() => {
     setEditGroup(null);
     setGroupFormOpen(true);
-  }, []);
-
-  const taskArrangeTasks = useMemo(
-    () => groups.find((g) => g.id === taskArrangeGroupId)?.tasks || [],
-    [groups, taskArrangeGroupId]
-  );
-
-  const openTaskArrange = useCallback((group) => {
-    setTaskArrangeGroupId(group.id);
-    setTaskArrangeGroupName(group.name);
-    setTaskArrangeOpen(true);
   }, []);
 
   const openEditSubtask = useCallback((groupId, task, subtask) => {
@@ -138,15 +123,6 @@ export default function Timeline({ selectedDate }) {
                   </Text>
                 )}
               </View>
-              {group.tasks.length >= 2 && (
-                <TouchableOpacity
-                  style={[styles.arrangeTaskBtn, { backgroundColor: colors.addBtnBg }]}
-                  onPress={() => openTaskArrange(group, visibleTasks)}
-                  hitSlop={4}
-                >
-                  <Text style={[styles.arrangeTaskIcon, { color: colors.addBtnText }]}>↕</Text>
-                </TouchableOpacity>
-              )}
               <TouchableOpacity
                 style={[styles.addTaskBtn, { backgroundColor: colors.addBtnBg }]}
                 onPress={() => openAddTask(group.id, group.name, group.recurrence)}
@@ -248,14 +224,6 @@ export default function Timeline({ selectedDate }) {
         onClose={() => setArrangeOpen(false)}
         selectedDate={selectedDate}
       />
-      <TaskArrange
-        visible={taskArrangeOpen}
-        onClose={() => setTaskArrangeOpen(false)}
-        tasks={taskArrangeTasks}
-        title={`Arrange Tasks — ${taskArrangeGroupName}`}
-        mode="group"
-        groupId={taskArrangeGroupId}
-      />
       <SubtaskEditForm
         visible={subtaskFormOpen}
         onClose={() => setSubtaskFormOpen(false)}
@@ -326,17 +294,6 @@ const styles = StyleSheet.create({
   },
   groupCount: {
     fontSize: 12,
-  },
-  arrangeTaskBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  arrangeTaskIcon: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   addTaskBtn: {
     width: 32,
