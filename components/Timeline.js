@@ -124,7 +124,7 @@ export default function Timeline({ selectedDate }) {
                 )}
               </View>
               <TouchableOpacity
-                style={[styles.addTaskBtn, { backgroundColor: colors.addBtnBg }]}
+                style={[styles.addTaskBtn, { backgroundColor: colors.addBtnBg, borderColor: colors.addBtnBorder, borderWidth: colors.addBtnBorder !== 'transparent' ? 1.5 : 0 }]}
                 onPress={() => openAddTask(group.id, group.name, group.recurrence)}
               >
                 <Text style={[styles.addTaskPlus, { color: colors.addBtnText }]}>+ Add Task</Text>

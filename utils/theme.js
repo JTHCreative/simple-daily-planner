@@ -21,6 +21,7 @@ const lightColors = {
   groupIconBg: 'rgba(255, 255, 255, 0.2)',
   addBtnBg: '#ffffff',
   addBtnText: '#dc2626',
+  addBtnBorder: 'transparent',
 };
 
 const darkColors = {
@@ -41,8 +42,9 @@ const darkColors = {
   groupHeaderText: '#f5f5f5',
   groupHeaderMuted: '#737373',
   groupIconBg: 'rgba(239, 68, 68, 0.12)',
-  addBtnBg: '#ef4444',
-  addBtnText: '#ffffff',
+  addBtnBg: 'transparent',
+  addBtnText: '#ef4444',
+  addBtnBorder: '#ef4444',
 };
 
 const ThemeModeContext = createContext('system');
