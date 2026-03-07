@@ -14,28 +14,39 @@ function getDateOffset(date, offset) {
 
 export default function SwipeableDay({ selectedDate, onDateChange, children: renderDay }) {
   const translateX = useRef(new Animated.Value(0)).current;
+  const prevOffset = useRef(new Animated.Value(-SCREEN_WIDTH)).current;
+  const nextOffset = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const isAnimating = useRef(false);
+
+  // Keep date refs current so PanResponder closure always has latest
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
+  const onDateChangeRef = useRef(onDateChange);
+  onDateChangeRef.current = onDateChange;
 
   const prevDate = useMemo(() => getDateOffset(selectedDate, -1), [selectedDate]);
   const nextDate = useMemo(() => getDateOffset(selectedDate, 1), [selectedDate]);
 
+  const prevTransform = useRef(Animated.add(translateX, prevOffset)).current;
+  const nextTransform = useRef(Animated.add(translateX, nextOffset)).current;
+
   const snapTo = useCallback(
     (toValue, newDate) => {
       isAnimating.current = true;
-      Animated.spring(translateX, {
+      Animated.timing(translateX, {
         toValue,
+        duration: 250,
         useNativeDriver: true,
-        tension: 68,
-        friction: 12,
       }).start(() => {
-        if (newDate) {
-          onDateChange(newDate);
-        }
+        // Reset translateX BEFORE changing date so there's no flash
         translateX.setValue(0);
         isAnimating.current = false;
+        if (newDate) {
+          onDateChangeRef.current(newDate);
+        }
       });
     },
-    [translateX, onDateChange]
+    [translateX]
   );
 
   const panResponder = useMemo(
@@ -50,12 +61,11 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
         },
         onPanResponderRelease: (_, gesture) => {
           const { dx, vx } = gesture;
+          const current = selectedDateRef.current;
           if (dx > SWIPE_THRESHOLD || vx > SWIPE_VELOCITY) {
-            // Swipe right → previous day
-            snapTo(SCREEN_WIDTH, prevDate);
+            snapTo(SCREEN_WIDTH, getDateOffset(current, -1));
           } else if (dx < -SWIPE_THRESHOLD || vx < -SWIPE_VELOCITY) {
-            // Swipe left → next day
-            snapTo(-SCREEN_WIDTH, nextDate);
+            snapTo(-SCREEN_WIDTH, getDateOffset(current, 1));
           } else {
             snapTo(0, null);
           }
@@ -64,7 +74,7 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
           snapTo(0, null);
         },
       }),
-    [translateX, snapTo, prevDate, nextDate]
+    [translateX, snapTo]
   );
 
   return (
@@ -73,9 +83,7 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
       <Animated.View
         style={[
           styles.page,
-          {
-            transform: [{ translateX: Animated.add(translateX, -SCREEN_WIDTH) }],
-          },
+          { transform: [{ translateX: prevTransform }] },
         ]}
       >
         {renderDay(prevDate)}
@@ -85,9 +93,7 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
       <Animated.View
         style={[
           styles.page,
-          {
-            transform: [{ translateX }],
-          },
+          { transform: [{ translateX }] },
         ]}
       >
         {renderDay(selectedDate)}
@@ -97,9 +103,7 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
       <Animated.View
         style={[
           styles.page,
-          {
-            transform: [{ translateX: Animated.add(translateX, SCREEN_WIDTH) }],
-          },
+          { transform: [{ translateX: nextTransform }] },
         ]}
       >
         {renderDay(nextDate)}
