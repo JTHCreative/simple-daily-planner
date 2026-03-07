@@ -37,14 +37,14 @@ export default function HomeScreen() {
                 cy="512"
                 r="280"
                 fill="none"
-                stroke={colors.headerBg}
+                stroke={colors.headerIconStroke}
                 strokeWidth="48"
                 strokeLinecap="round"
               />
               <Polyline
                 points="380,520 470,620 644,420"
                 fill="none"
-                stroke={colors.headerBg}
+                stroke={colors.headerIconStroke}
                 strokeWidth="52"
                 strokeLinecap="round"
                 strokeLinejoin="round"
