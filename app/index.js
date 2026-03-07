@@ -30,7 +30,7 @@ export default function HomeScreen() {
         <View style={styles.headerLeft}>
           <View style={styles.appIcon}>
             <Svg width={28} height={28} viewBox="0 0 1024 1024">
-              <Circle cx="512" cy="512" r="420" fill={colors.headerText} />
+              <Circle cx="512" cy="512" r="420" fill={colors.headerIcon} />
               <Circle
                 cx="512"
                 cy="512"
