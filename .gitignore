@@ -14,3 +14,7 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Expo CNG - generated native folders
+/android
+/ios
