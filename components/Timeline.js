@@ -127,7 +127,7 @@ export default function Timeline({ selectedDate }) {
                 style={[styles.addTaskBtn, { backgroundColor: colors.addBtnBg }]}
                 onPress={() => openAddTask(group.id, group.name, group.recurrence)}
               >
-                <Text style={[styles.addTaskPlus, { color: colors.addBtnText }]}>+</Text>
+                <Text style={[styles.addTaskPlus, { color: colors.addBtnText }]}>+ Add Task</Text>
               </TouchableOpacity>
             </TouchableOpacity>
 
@@ -296,16 +296,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   addTaskBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addTaskPlus: {
-    fontSize: 20,
-    fontWeight: '500',
-    marginTop: -1,
+    fontSize: 12,
+    fontWeight: '600',
   },
   taskArea: {
     position: 'relative',
