@@ -144,6 +144,7 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
             Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5
           );
         },
+        onPanResponderTerminationRequest: () => false,
         onPanResponderMove: (_, gesture) => {
           translateX.setValue(gesture.dx);
         },

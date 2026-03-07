@@ -24,7 +24,7 @@ function AppContent({ onSplashFinish, showSplash }) {
   return (
     <ThemeModeProvider value={themeMode}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false, gestureEnabled: false }} />
     </ThemeModeProvider>
   );
 }
