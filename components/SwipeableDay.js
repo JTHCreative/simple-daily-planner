@@ -12,7 +12,7 @@ function getDateOffset(date, offset) {
   return d;
 }
 
-export default function SwipeableDay({ selectedDate, onDateChange, children: renderDay }) {
+export default function SwipeableDay({ selectedDate, onDateChange, step = 1, children: renderDay }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const isAnimating = useRef(false);
   const pendingReset = useRef(false);
@@ -25,6 +25,9 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
   const onDateChangeRef = useRef(onDateChange);
   onDateChangeRef.current = onDateChange;
 
+  const stepRef = useRef(step);
+  stepRef.current = step;
+
   // Sync with external date changes (e.g. DateHeader tap)
   const prevSelectedDate = useRef(selectedDate);
   useEffect(() => {
@@ -35,8 +38,8 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
     prevSelectedDate.current = selectedDate;
   }, [selectedDate, translateX]);
 
-  const prevDate = useMemo(() => getDateOffset(currentDate, -1), [currentDate]);
-  const nextDate = useMemo(() => getDateOffset(currentDate, 1), [currentDate]);
+  const prevDate = useMemo(() => getDateOffset(currentDate, -step), [currentDate, step]);
+  const nextDate = useMemo(() => getDateOffset(currentDate, step), [currentDate, step]);
 
   // Stable animated nodes for prev/next page transforms (created once)
   const prevTransform = useRef(Animated.add(translateX, -SCREEN_WIDTH)).current;
@@ -96,9 +99,9 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
           const { dx, vx } = gesture;
           const current = currentDateRef.current;
           if (dx > SWIPE_THRESHOLD || (dx > 0 && vx > SWIPE_VELOCITY)) {
-            snapTo(SCREEN_WIDTH, getDateOffset(current, -1));
+            snapTo(SCREEN_WIDTH, getDateOffset(current, -stepRef.current));
           } else if (dx < -SWIPE_THRESHOLD || (dx < 0 && vx < -SWIPE_VELOCITY)) {
-            snapTo(-SCREEN_WIDTH, getDateOffset(current, 1));
+            snapTo(-SCREEN_WIDTH, getDateOffset(current, stepRef.current));
           } else {
             snapTo(0, null);
           }
