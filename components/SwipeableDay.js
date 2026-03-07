@@ -1,4 +1,4 @@
-import { useRef, useMemo, useCallback } from 'react';
+import { useRef, useState, useMemo, useCallback, useLayoutEffect, useEffect } from 'react';
 import { View, Animated, PanResponder, Dimensions, StyleSheet } from 'react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -15,14 +15,43 @@ function getDateOffset(date, offset) {
 export default function SwipeableDay({ selectedDate, onDateChange, children: renderDay }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const isAnimating = useRef(false);
+  const pendingReset = useRef(false);
 
-  const selectedDateRef = useRef(selectedDate);
-  selectedDateRef.current = selectedDate;
+  // Internal date state so we can control render timing
+  const [currentDate, setCurrentDate] = useState(selectedDate);
+  const currentDateRef = useRef(currentDate);
+  currentDateRef.current = currentDate;
+
   const onDateChangeRef = useRef(onDateChange);
   onDateChangeRef.current = onDateChange;
 
-  const prevDate = useMemo(() => getDateOffset(selectedDate, -1), [selectedDate]);
-  const nextDate = useMemo(() => getDateOffset(selectedDate, 1), [selectedDate]);
+  // Sync with external date changes (e.g. DateHeader tap)
+  const prevSelectedDate = useRef(selectedDate);
+  useEffect(() => {
+    if (prevSelectedDate.current.getTime() !== selectedDate.getTime()) {
+      setCurrentDate(selectedDate);
+      translateX.setValue(0);
+    }
+    prevSelectedDate.current = selectedDate;
+  }, [selectedDate, translateX]);
+
+  const prevDate = useMemo(() => getDateOffset(currentDate, -1), [currentDate]);
+  const nextDate = useMemo(() => getDateOffset(currentDate, 1), [currentDate]);
+
+  // Stable animated nodes for prev/next page transforms (created once)
+  const prevTransform = useRef(Animated.add(translateX, -SCREEN_WIDTH)).current;
+  const nextTransform = useRef(Animated.add(translateX, SCREEN_WIDTH)).current;
+
+  // After React commits new content, reset translateX so the center page
+  // (now showing the correct new date) slides into position 0.  This fires
+  // BEFORE the native paint, so the user never sees stale content.
+  useLayoutEffect(() => {
+    if (pendingReset.current) {
+      translateX.setValue(0);
+      pendingReset.current = false;
+      isAnimating.current = false;
+    }
+  });
 
   const snapTo = useCallback(
     (toValue, newDate) => {
@@ -32,13 +61,17 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
         duration: 250,
         useNativeDriver: false,
       }).start(() => {
-        // With useNativeDriver:false these are synchronous on the JS thread —
-        // translateX resets and React re-renders with the new date in the
-        // same frame, so there is no flash of stale content.
-        translateX.setValue(0);
-        isAnimating.current = false;
         if (newDate) {
+          // Mark that translateX should reset after React re-renders
+          pendingReset.current = true;
+          // Update internal + external date — React batches both and
+          // re-renders once. useLayoutEffect then resets translateX.
+          setCurrentDate(newDate);
           onDateChangeRef.current(newDate);
+        } else {
+          // Snap-back, no date change
+          translateX.setValue(0);
+          isAnimating.current = false;
         }
       });
     },
@@ -61,7 +94,7 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
         },
         onPanResponderRelease: (_, gesture) => {
           const { dx, vx } = gesture;
-          const current = selectedDateRef.current;
+          const current = currentDateRef.current;
           if (dx > SWIPE_THRESHOLD || (dx > 0 && vx > SWIPE_VELOCITY)) {
             snapTo(SCREEN_WIDTH, getDateOffset(current, -1));
           } else if (dx < -SWIPE_THRESHOLD || (dx < 0 && vx < -SWIPE_VELOCITY)) {
@@ -80,10 +113,7 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
       <Animated.View
-        style={[
-          styles.page,
-          { transform: [{ translateX: Animated.add(translateX, -SCREEN_WIDTH) }] },
-        ]}
+        style={[styles.page, { transform: [{ translateX: prevTransform }] }]}
       >
         {renderDay(prevDate)}
       </Animated.View>
@@ -91,14 +121,11 @@ export default function SwipeableDay({ selectedDate, onDateChange, children: ren
       <Animated.View
         style={[styles.page, { transform: [{ translateX }] }]}
       >
-        {renderDay(selectedDate)}
+        {renderDay(currentDate)}
       </Animated.View>
 
       <Animated.View
-        style={[
-          styles.page,
-          { transform: [{ translateX: Animated.add(translateX, SCREEN_WIDTH) }] },
-        ]}
+        style={[styles.page, { transform: [{ translateX: nextTransform }] }]}
       >
         {renderDay(nextDate)}
       </Animated.View>
