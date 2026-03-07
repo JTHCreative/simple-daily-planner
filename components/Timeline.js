@@ -133,7 +133,7 @@ export default function Timeline({ selectedDate }) {
               >
                 <Text style={[styles.addTaskPlus, { color: colors.addBtnText }]}>+ Add Task</Text>
               </TouchableOpacity>
-              <CompletedBanner isCompleted={allTasksDone} />
+              <CompletedBanner key={`${group.id}-${dateKey}`} isCompleted={allTasksDone} />
             </TouchableOpacity>
 
             {/* Task list area with timeline line on the left under the icon */}

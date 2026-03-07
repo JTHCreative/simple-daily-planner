@@ -129,7 +129,7 @@ export default function WeeklyGoals({ selectedDate }) {
             key={goal.id}
             style={[styles.goalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
-            <CompletedBanner isCompleted={allTasksDone} />
+            <CompletedBanner key={`${goal.id}-${weekKey}`} isCompleted={allTasksDone} />
 
             {/* Goal Header */}
             <Pressable

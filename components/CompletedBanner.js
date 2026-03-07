@@ -57,41 +57,32 @@ function ConfettiPiece({ delay, color, startX, startY, endX, endY, rotation }) {
   );
 }
 
+function makeConfetti() {
+  return Array.from({ length: CONFETTI_COUNT }, () => ({
+    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+    startX: randomBetween(-10, 30),
+    startY: randomBetween(-10, 20),
+    endX: randomBetween(-60, 80),
+    endY: randomBetween(-60, 60),
+    delay: Math.random() * 200,
+    rotation: randomBetween(-360, 360),
+  }));
+}
+
 export default function CompletedBanner({ isCompleted }) {
   const [showConfetti, setShowConfetti] = useState(false);
   const [confettiKey, setConfettiKey] = useState(0);
-  const bannerScale = useRef(new Animated.Value(0)).current;
-  const wasCompleted = useRef(false);
+  // Initialize from prop so already-completed states show instantly on mount
+  const bannerScale = useRef(new Animated.Value(isCompleted ? 1 : 0)).current;
+  const wasCompleted = useRef(isCompleted);
 
-  const confettiPieces = useRef(
-    Array.from({ length: CONFETTI_COUNT }, () => ({
-      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-      startX: randomBetween(-10, 30),
-      startY: randomBetween(-10, 20),
-      endX: randomBetween(-60, 80),
-      endY: randomBetween(-60, 60),
-      delay: Math.random() * 200,
-      rotation: randomBetween(-360, 360),
-    }))
-  );
-
-  const regenerateConfetti = useCallback(() => {
-    confettiPieces.current = Array.from({ length: CONFETTI_COUNT }, () => ({
-      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-      startX: randomBetween(-10, 30),
-      startY: randomBetween(-10, 20),
-      endX: randomBetween(-60, 80),
-      endY: randomBetween(-60, 60),
-      delay: Math.random() * 200,
-      rotation: randomBetween(-360, 360),
-    }));
-  }, []);
+  const confettiPieces = useRef(makeConfetti());
 
   useEffect(() => {
     if (isCompleted && !wasCompleted.current) {
-      // Just became completed — pop in banner + confetti
+      // Transitioned from incomplete → complete (user action)
       bannerScale.setValue(0);
-      regenerateConfetti();
+      confettiPieces.current = makeConfetti();
       setConfettiKey((k) => k + 1);
       setShowConfetti(true);
 
@@ -102,37 +93,26 @@ export default function CompletedBanner({ isCompleted }) {
         useNativeDriver: true,
       }).start();
 
-      // Hide confetti after animation
       const timer = setTimeout(() => setShowConfetti(false), 1000);
       wasCompleted.current = true;
       return () => clearTimeout(timer);
     } else if (!isCompleted && wasCompleted.current) {
-      // Un-completed — hide banner
-      Animated.timing(bannerScale, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
+      // Un-completed — hide instantly (no animation)
+      bannerScale.setValue(0);
       setShowConfetti(false);
       wasCompleted.current = false;
-    } else if (isCompleted) {
-      // Already completed on mount (e.g. returning to screen)
-      bannerScale.setValue(1);
-      wasCompleted.current = true;
     }
-  }, [isCompleted, bannerScale, regenerateConfetti]);
+  }, [isCompleted, bannerScale]);
 
-  if (!isCompleted && !wasCompleted.current) return null;
+  if (!isCompleted) return null;
 
   return (
     <View style={styles.bannerContainer} pointerEvents="none">
-      {/* Confetti layer */}
       {showConfetti &&
         confettiPieces.current.map((piece, i) => (
           <ConfettiPiece key={`${confettiKey}-${i}`} {...piece} />
         ))}
 
-      {/* Diagonal ribbon */}
       <Animated.View
         style={[
           styles.ribbon,
