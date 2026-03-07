@@ -172,7 +172,7 @@ export default function DraggableSubtaskList({ subtasks, onReorder, onUpdateName
                     <View style={[styles.handleBar, { backgroundColor: colors.textMuted }]} />
                   </View>
 
-                  {/* Name — tap to edit */}
+                  {/* Name — tap to edit, long-press to drag */}
                   {isEditing ? (
                     <TextInput
                       style={[styles.editInput, { color: colors.text, borderColor: colors.primary }]}
@@ -185,7 +185,12 @@ export default function DraggableSubtaskList({ subtasks, onReorder, onUpdateName
                       returnKeyType="done"
                     />
                   ) : (
-                    <Pressable style={styles.nameArea} onPress={() => startEditing(st)}>
+                    <Pressable
+                      style={styles.nameArea}
+                      onPress={() => startEditing(st)}
+                      onLongPress={(e) => handleLongPress(index, e.nativeEvent.pageY)}
+                      delayLongPress={200}
+                    >
                       <Text style={[styles.subtaskText, { color: colors.text }]} numberOfLines={1}>
                         {st.name}
                       </Text>

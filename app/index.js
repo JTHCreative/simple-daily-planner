@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 import DateHeader from '../components/DateHeader';
 import Timeline from '../components/Timeline';
 import WeeklyGoals from '../components/WeeklyGoals';
+import SwipeableDay from '../components/SwipeableDay';
 import SettingsModal from '../components/SettingsModal';
 import { useSettings } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
@@ -131,17 +132,27 @@ export default function HomeScreen() {
 
       <DateHeader selectedDate={selectedDate} onDateChange={setSelectedDate} mode={view === 'goals' ? 'weekly' : 'daily'} />
 
-      <ScrollView
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {view === 'goals' ? (
+      {view === 'goals' ? (
+        <ScrollView
+          style={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <WeeklyGoals selectedDate={selectedDate} />
-        ) : (
-          <Timeline selectedDate={selectedDate} />
-        )}
-      </ScrollView>
+        </ScrollView>
+      ) : (
+        <SwipeableDay selectedDate={selectedDate} onDateChange={setSelectedDate}>
+          {(date) => (
+            <ScrollView
+              style={styles.scroll}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Timeline selectedDate={date} />
+            </ScrollView>
+          )}
+        </SwipeableDay>
+      )}
 
       <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
     </SafeAreaView>
