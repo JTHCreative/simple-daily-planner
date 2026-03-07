@@ -1,16 +1,13 @@
-import { useState } from 'react';
-import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
+import { useState, useCallback, memo } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { usePlanner } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
 const CIRCLE_SIZE = 22;
 const CIRCLE_LEFT = -33;
 
-export default function TaskItem({ task, groupId, dateKey, onEdit, onEditSubtask }) {
+const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, completedTasks, dispatch, onEdit, onEditSubtask }) {
   const colors = useTheme();
-  const { state, dispatch } = usePlanner();
-  const isCompleted = state.completedTasks[dateKey]?.[task.id] || false;
   const [expanded, setExpanded] = useState(false);
 
   const subtasks = task.subtasks || [];
@@ -18,23 +15,23 @@ export default function TaskItem({ task, groupId, dateKey, onEdit, onEditSubtask
 
   const subtaskIds = subtasks.map((st) => st.id);
 
-  const handleTap = () => {
+  const handleTap = useCallback(() => {
     dispatch({ type: 'TOGGLE_TASK', payload: { taskId: task.id, dateKey, subtaskIds } });
-  };
+  }, [dispatch, task.id, dateKey, subtaskIds]);
 
-  const handleLongPress = () => {
+  const handleLongPress = useCallback(() => {
     onEdit(task);
-  };
+  }, [onEdit, task]);
 
-  const toggleSubtask = (subtaskId) => {
+  const toggleSubtask = useCallback((subtaskId) => {
     dispatch({
       type: 'TOGGLE_SUBTASK',
       payload: { subtaskId, dateKey, taskId: task.id, allSubtaskIds: subtaskIds },
     });
-  };
+  }, [dispatch, dateKey, task.id, subtaskIds]);
 
   const completedCount = subtasks.filter(
-    (st) => state.completedTasks[dateKey]?.[st.id]
+    (st) => completedTasks[dateKey]?.[st.id]
   ).length;
 
   return (
@@ -127,7 +124,7 @@ export default function TaskItem({ task, groupId, dateKey, onEdit, onEditSubtask
       {hasSubtasks && expanded && (
         <View style={styles.subtaskList}>
           {subtasks.map((st) => {
-            const stCompleted = state.completedTasks[dateKey]?.[st.id] || false;
+            const stCompleted = completedTasks[dateKey]?.[st.id] || false;
             return (
               <Pressable
                 key={st.id}
@@ -169,7 +166,9 @@ export default function TaskItem({ task, groupId, dateKey, onEdit, onEditSubtask
       )}
     </View>
   );
-}
+});
+
+export default TaskItem;
 
 const styles = StyleSheet.create({
   container: {

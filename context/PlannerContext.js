@@ -1,10 +1,15 @@
 import 'react-native-get-random-values';
-import { createContext, useContext, useReducer, useEffect, useRef } from 'react';
+import { createContext, useContext, useReducer, useEffect, useRef, useMemo } from 'react';
 import { loadData, saveData } from '../utils/storage';
 import { v4 as uuid } from 'uuid';
 import { scheduleTaskAlarm, cancelTaskAlarm } from '../utils/notifications';
 
-const PlannerContext = createContext();
+// Separate contexts so components only re-render when their slice changes
+const GroupsContext = createContext();
+const CompletionContext = createContext();
+const WeeklyGoalsContext = createContext();
+const SettingsContext = createContext();
+const DispatchContext = createContext();
 
 const DEFAULT_STATE = {
   groups: [],
@@ -277,15 +282,68 @@ export function PlannerProvider({ children }) {
     }
   }, [state]);
 
+  // Memoize each slice so providers only trigger re-renders when their data changes
+  const groups = state.groups;
+  const completedTasks = state.completedTasks;
+  const weeklyGoals = state.weeklyGoals;
+  const settings = state.settings;
+
   return (
-    <PlannerContext.Provider value={{ state, dispatch }}>
-      {children}
-    </PlannerContext.Provider>
+    <DispatchContext.Provider value={dispatch}>
+      <GroupsContext.Provider value={groups}>
+        <CompletionContext.Provider value={completedTasks}>
+          <WeeklyGoalsContext.Provider value={weeklyGoals}>
+            <SettingsContext.Provider value={settings}>
+              {children}
+            </SettingsContext.Provider>
+          </WeeklyGoalsContext.Provider>
+        </CompletionContext.Provider>
+      </GroupsContext.Provider>
+    </DispatchContext.Provider>
   );
 }
 
-export function usePlanner() {
-  const ctx = useContext(PlannerContext);
-  if (!ctx) throw new Error('usePlanner must be used within PlannerProvider');
+// Granular hooks — components subscribe only to the slice they need
+export function useGroups() {
+  const ctx = useContext(GroupsContext);
+  if (ctx === undefined) throw new Error('useGroups must be used within PlannerProvider');
   return ctx;
+}
+
+export function useCompletedTasks() {
+  const ctx = useContext(CompletionContext);
+  if (ctx === undefined) throw new Error('useCompletedTasks must be used within PlannerProvider');
+  return ctx;
+}
+
+export function useWeeklyGoals() {
+  const ctx = useContext(WeeklyGoalsContext);
+  if (ctx === undefined) throw new Error('useWeeklyGoals must be used within PlannerProvider');
+  return ctx;
+}
+
+export function useSettings() {
+  const ctx = useContext(SettingsContext);
+  if (ctx === undefined) throw new Error('useSettings must be used within PlannerProvider');
+  return ctx;
+}
+
+export function useDispatch() {
+  const ctx = useContext(DispatchContext);
+  if (!ctx) throw new Error('useDispatch must be used within PlannerProvider');
+  return ctx;
+}
+
+// Keep backward-compatible hook that returns full state + dispatch
+export function usePlanner() {
+  const groups = useContext(GroupsContext);
+  const completedTasks = useContext(CompletionContext);
+  const weeklyGoals = useContext(WeeklyGoalsContext);
+  const settings = useContext(SettingsContext);
+  const dispatch = useContext(DispatchContext);
+  if (dispatch === undefined) throw new Error('usePlanner must be used within PlannerProvider');
+  return {
+    state: { groups, completedTasks, weeklyGoals, settings },
+    dispatch,
+  };
 }

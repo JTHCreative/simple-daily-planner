@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet } from 'react-native';
-import { usePlanner } from '../context/PlannerContext';
+import { useWeeklyGoals, useDispatch } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 import WeeklyGoalForm from './WeeklyGoalForm';
 import WeeklyTaskForm from './WeeklyTaskForm';
@@ -15,7 +15,8 @@ function getWeekKey(date) {
 
 export default function WeeklyGoals({ selectedDate }) {
   const colors = useTheme();
-  const { state, dispatch } = usePlanner();
+  const weeklyGoals = useWeeklyGoals();
+  const dispatch = useDispatch();
   const [expandedGoals, setExpandedGoals] = useState({});
   const [expandedTasks, setExpandedTasks] = useState({});
 
@@ -32,53 +33,59 @@ export default function WeeklyGoals({ selectedDate }) {
   // Quick-add goal
   const [newGoal, setNewGoal] = useState('');
 
-  const weekKey = getWeekKey(selectedDate);
-  const goals = state.weeklyGoals.filter((g) => g.weekKey === weekKey);
+  const weekKey = useMemo(() => getWeekKey(selectedDate), [selectedDate]);
 
-  const addGoal = () => {
+  const goals = useMemo(
+    () => weeklyGoals.filter((g) => g.weekKey === weekKey),
+    [weeklyGoals, weekKey]
+  );
+
+  // Count completed tasks across all goals
+  const { totalTasks, completedTaskCount } = useMemo(() => {
+    let total = 0;
+    let completed = 0;
+    for (const g of goals) {
+      const tasks = g.tasks || [];
+      total += tasks.length;
+      for (const t of tasks) {
+        if (t.completed) completed++;
+      }
+    }
+    return { totalTasks: total, completedTaskCount: completed };
+  }, [goals]);
+
+  const addGoal = useCallback(() => {
     if (!newGoal.trim()) return;
     dispatch({ type: 'ADD_WEEKLY_GOAL', payload: { text: newGoal.trim(), weekKey } });
     setNewGoal('');
-  };
+  }, [newGoal, dispatch, weekKey]);
 
-  const toggleGoalExpand = (goalId) => {
+  const toggleGoalExpand = useCallback((goalId) => {
     setExpandedGoals((prev) => ({ ...prev, [goalId]: !prev[goalId] }));
-  };
+  }, []);
 
-  const toggleTaskExpand = (taskId) => {
+  const toggleTaskExpand = useCallback((taskId) => {
     setExpandedTasks((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
-  };
+  }, []);
 
-  const openEditGoal = (goal) => {
+  const openEditGoal = useCallback((goal) => {
     setEditGoal(goal);
     setGoalFormVisible(true);
-  };
+  }, []);
 
-  const openNewGoal = () => {
-    setEditGoal(null);
-    setGoalFormVisible(true);
-  };
-
-  const openAddTask = (goal) => {
+  const openAddTask = useCallback((goal) => {
     setTaskFormGoalId(goal.id);
     setTaskFormGoalName(goal.text);
     setEditTask(null);
     setTaskFormVisible(true);
-  };
+  }, []);
 
-  const openEditTask = (goal, task) => {
+  const openEditTask = useCallback((goal, task) => {
     setTaskFormGoalId(goal.id);
     setTaskFormGoalName(goal.text);
     setEditTask(task);
     setTaskFormVisible(true);
-  };
-
-  // Count completed tasks across all goals
-  const totalTasks = goals.reduce((sum, g) => sum + (g.tasks || []).length, 0);
-  const completedTasks = goals.reduce(
-    (sum, g) => sum + (g.tasks || []).filter((t) => t.completed).length,
-    0
-  );
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -86,7 +93,7 @@ export default function WeeklyGoals({ selectedDate }) {
         <Text style={[styles.title, { color: colors.text }]}>Weekly Goals</Text>
         <View style={[styles.progressBadge, { backgroundColor: colors.primaryLight }]}>
           <Text style={[styles.progressText, { color: colors.primary }]}>
-            {completedTasks}/{totalTasks}
+            {completedTaskCount}/{totalTasks}
           </Text>
         </View>
       </View>

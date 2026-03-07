@@ -2,13 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
 import RecurrencePicker from './RecurrencePicker';
-import { usePlanner } from '../context/PlannerContext';
+import { useDispatch } from '../context/PlannerContext';
 import { getIconById } from '../utils/icons';
 import { useTheme } from '../utils/theme';
 
 export default function GroupForm({ visible, onClose, editGroup, selectedDate }) {
   const colors = useTheme();
-  const { dispatch } = usePlanner();
+  const dispatch = useDispatch();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('☀️');

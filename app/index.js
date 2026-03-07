@@ -6,12 +6,12 @@ import DateHeader from '../components/DateHeader';
 import Timeline from '../components/Timeline';
 import WeeklyGoals from '../components/WeeklyGoals';
 import SettingsModal from '../components/SettingsModal';
-import { usePlanner } from '../context/PlannerContext';
+import { useSettings } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
 export default function HomeScreen() {
   const colors = useTheme();
-  const { state } = usePlanner();
+  const settings = useSettings();
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -20,7 +20,7 @@ export default function HomeScreen() {
   const [view, setView] = useState('daily');
   const [settingsVisible, setSettingsVisible] = useState(false);
 
-  const userName = state.settings?.userName || '';
+  const userName = settings?.userName || '';
   const headerTitle = userName ? `${userName}'s Planner` : 'My Planner';
 
   return (

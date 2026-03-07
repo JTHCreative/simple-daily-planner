@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
-import { usePlanner } from '../context/PlannerContext';
+import { useDispatch } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 import { requestNotificationPermissions } from '../utils/notifications';
 
@@ -15,7 +15,7 @@ function formatDate(date) {
 
 export default function TaskForm({ visible, onClose, groupId, groupName, editTask, selectedDate, groupRecurrence }) {
   const colors = useTheme();
-  const { dispatch } = usePlanner();
+  const dispatch = useDispatch();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [subtasks, setSubtasks] = useState([]);

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
-import { usePlanner } from '../context/PlannerContext';
+import { useGroups, useDispatch } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
 export default function SubtaskEditForm({ visible, onClose, groupId, taskId, editSubtask }) {
   const colors = useTheme();
-  const { state, dispatch } = usePlanner();
+  const groups = useGroups();
+  const dispatch = useDispatch();
   const [name, setName] = useState('');
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export default function SubtaskEditForm({ visible, onClose, groupId, taskId, edi
   }, [editSubtask, visible]);
 
   const findTask = () => {
-    for (const g of state.groups) {
+    for (const g of groups) {
       if (g.id === groupId) {
         return g.tasks.find((t) => t.id === taskId);
       }

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
-import { usePlanner } from '../context/PlannerContext';
+import { useDispatch } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
 export default function WeeklyTaskForm({ visible, onClose, goalId, goalName, editTask }) {
   const colors = useTheme();
-  const { dispatch } = usePlanner();
+  const dispatch = useDispatch();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [subtasks, setSubtasks] = useState([]);

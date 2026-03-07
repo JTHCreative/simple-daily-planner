@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
-import { usePlanner } from '../context/PlannerContext';
+import { useDispatch } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
 export default function WeeklyGoalForm({ visible, onClose, editGoal, weekKey }) {
   const colors = useTheme();
-  const { dispatch } = usePlanner();
+  const dispatch = useDispatch();
   const [text, setText] = useState('');
   const [icon, setIcon] = useState('🎯');
   const emojiInputRef = useRef(null);

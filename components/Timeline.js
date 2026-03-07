@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { usePlanner } from '../context/PlannerContext';
+import { useGroups, useCompletedTasks, useDispatch } from '../context/PlannerContext';
 import { getIconById } from '../utils/icons';
 import { shouldShowOnDate } from '../utils/recurrence';
 import TaskItem from './TaskItem';
@@ -15,7 +15,9 @@ const LINE_OFFSET = 36;
 
 export default function Timeline({ selectedDate }) {
   const colors = useTheme();
-  const { state } = usePlanner();
+  const groups = useGroups();
+  const completedTasks = useCompletedTasks();
+  const dispatch = useDispatch();
   const [groupFormOpen, setGroupFormOpen] = useState(false);
   const [editGroup, setEditGroup] = useState(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
@@ -29,44 +31,48 @@ export default function Timeline({ selectedDate }) {
   const [editSubtaskTaskId, setEditSubtaskTaskId] = useState(null);
   const [editSubtask, setEditSubtask] = useState(null);
 
-  const dateKey = selectedDate.toISOString().split('T')[0];
-
-  const visibleGroups = state.groups.filter((g) =>
-    shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)
+  const dateKey = useMemo(
+    () => selectedDate.toISOString().split('T')[0],
+    [selectedDate]
   );
 
-  const openAddTask = (groupId, groupName, groupRecurrence) => {
+  const visibleGroups = useMemo(
+    () => groups.filter((g) => shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)),
+    [groups, selectedDate]
+  );
+
+  const openAddTask = useCallback((groupId, groupName, groupRecurrence) => {
     setActiveGroupId(groupId);
     setActiveGroupName(groupName);
     setActiveGroupRecurrence(groupRecurrence);
     setEditTask(null);
     setTaskFormOpen(true);
-  };
+  }, []);
 
-  const openEditTask = (groupId, groupName, task, groupRecurrence) => {
+  const openEditTask = useCallback((groupId, groupName, task, groupRecurrence) => {
     setActiveGroupId(groupId);
     setActiveGroupName(groupName);
     setActiveGroupRecurrence(groupRecurrence);
     setEditTask(task);
     setTaskFormOpen(true);
-  };
+  }, []);
 
-  const openEditGroup = (group) => {
+  const openEditGroup = useCallback((group) => {
     setEditGroup(group);
     setGroupFormOpen(true);
-  };
+  }, []);
 
-  const openAddGroup = () => {
+  const openAddGroup = useCallback(() => {
     setEditGroup(null);
     setGroupFormOpen(true);
-  };
+  }, []);
 
-  const openEditSubtask = (groupId, task, subtask) => {
+  const openEditSubtask = useCallback((groupId, task, subtask) => {
     setEditSubtaskGroupId(groupId);
     setEditSubtaskTaskId(task.id);
     setEditSubtask(subtask);
     setSubtaskFormOpen(true);
-  };
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -86,9 +92,7 @@ export default function Timeline({ selectedDate }) {
         const isGroupDaily = group.recurrence?.type === 'daily';
         const visibleTasks = isGroupDaily
           ? group.tasks.filter((t) => {
-              // Tasks default to 'daily' (inherit group recurrence)
               if (!t.recurrence || t.recurrence === 'daily') return true;
-              // One-off tasks only show on their created date
               return t.createdDate === dateKey;
             })
           : group.tasks;
@@ -148,6 +152,9 @@ export default function Timeline({ selectedDate }) {
                     task={task}
                     groupId={group.id}
                     dateKey={dateKey}
+                    isCompleted={completedTasks[dateKey]?.[task.id] || false}
+                    completedTasks={completedTasks}
+                    dispatch={dispatch}
                     onEdit={(t) => openEditTask(group.id, group.name, t, group.recurrence)}
                     onEditSubtask={(t, st) => openEditSubtask(group.id, t, st)}
                   />

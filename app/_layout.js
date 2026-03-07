@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { PlannerProvider, usePlanner } from '../context/PlannerContext';
+import { PlannerProvider, useSettings } from '../context/PlannerContext';
 import { ThemeModeProvider, useIsDark } from '../utils/theme';
 import SplashScreen from '../components/SplashScreen';
 import { requestNotificationPermissions } from '../utils/notifications';
 
 function AppContent({ onSplashFinish, showSplash }) {
-  const { state } = usePlanner();
-  const themeMode = state.settings?.themeMode || 'system';
+  const settings = useSettings();
+  const themeMode = settings?.themeMode || 'system';
   const isDark = useIsDark();
-  const userName = state.settings?.userName || '';
+  const userName = settings?.userName || '';
 
   if (showSplash) {
     return (
@@ -31,8 +31,8 @@ function AppContent({ onSplashFinish, showSplash }) {
 
 function ThemedApp() {
   const [showSplash, setShowSplash] = useState(true);
-  const { state } = usePlanner();
-  const themeMode = state.settings?.themeMode || 'system';
+  const settings = useSettings();
+  const themeMode = settings?.themeMode || 'system';
 
   // Request notification permissions once on launch (non-blocking)
   useEffect(() => {

@@ -23,6 +23,7 @@ if (Platform.OS === 'android') {
 export async function requestNotificationPermissions() {
   const { status: existing } = await Notifications.getPermissionsAsync();
   if (existing === 'granted') return true;
+  if (existing === 'denied') return false;
 
   const { status } = await Notifications.requestPermissionsAsync();
   return status === 'granted';
@@ -30,11 +31,20 @@ export async function requestNotificationPermissions() {
 
 /**
  * Schedule a daily repeating notification for a task.
- * Uses the task ID as the notification identifier so we can cancel it later.
+ * Checks if an identical alarm already exists before scheduling.
  */
 export async function scheduleTaskAlarm(taskId, taskName, hour, minute) {
-  // Cancel any existing alarm for this task first
-  await cancelTaskAlarm(taskId);
+  // Check if this exact alarm already exists
+  const existing = await Notifications.getAllScheduledNotificationsAsync();
+  const match = existing.find((n) => n.identifier === taskId);
+  if (match) {
+    const trigger = match.trigger;
+    if (trigger?.hour === hour && trigger?.minute === minute && match.content?.body === taskName) {
+      return; // Already scheduled with same time and name
+    }
+    // Different time/name — cancel and reschedule
+    await Notifications.cancelScheduledNotificationAsync(taskId);
+  }
 
   await Notifications.scheduleNotificationAsync({
     identifier: taskId,

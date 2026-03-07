@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { usePlanner } from '../context/PlannerContext';
+import { useSettings, useDispatch } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
 const THEME_OPTIONS = [
@@ -12,8 +12,8 @@ const THEME_OPTIONS = [
 
 export default function SettingsModal({ visible, onClose }) {
   const colors = useTheme();
-  const { state, dispatch } = usePlanner();
-  const settings = state.settings || {};
+  const settings = useSettings() || {};
+  const dispatch = useDispatch();
   const [name, setName] = useState(settings.userName || '');
 
   const currentMode = settings.themeMode || 'system';

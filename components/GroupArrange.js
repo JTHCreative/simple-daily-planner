@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import BottomSheet from './BottomSheet';
 import { getIconById } from '../utils/icons';
-import { usePlanner } from '../context/PlannerContext';
+import { useGroups, useDispatch } from '../context/PlannerContext';
 import { shouldShowOnDate } from '../utils/recurrence';
 import { useTheme } from '../utils/theme';
 
@@ -19,7 +19,8 @@ const ROW_HEIGHT = 72;
 
 export default function GroupArrange({ visible, onClose, selectedDate }) {
   const colors = useTheme();
-  const { state, dispatch } = usePlanner();
+  const groups = useGroups();
+  const dispatch = useDispatch();
   const [draggingIndex, setDraggingIndex] = useState(-1);
   const [targetSlot, setTargetSlot] = useState(-1);
   const dragY = useRef(new Animated.Value(0)).current;
@@ -28,7 +29,7 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
   const currentSlot = useRef(-1);
   const isDragging = useRef(false);
 
-  const visibleGroups = state.groups.filter((g) =>
+  const visibleGroups = groups.filter((g) =>
     shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)
   );
 
@@ -44,7 +45,7 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
       const reordered = [];
       let visIdx = 0;
 
-      for (const g of state.groups) {
+      for (const g of groups) {
         if (visibleSet.has(g.id)) {
           reordered.push(newOrder[visIdx]);
           visIdx++;
@@ -55,7 +56,7 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
 
       dispatch({ type: 'REORDER_GROUPS', payload: reordered });
     },
-    [visibleGroups, state.groups, dispatch]
+    [visibleGroups, groups, dispatch]
   );
 
   const moveGroup = (fromIndex, toIndex) => {
