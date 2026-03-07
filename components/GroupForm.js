@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
 import RecurrencePicker from './RecurrencePicker';
+import DraggableTaskList from './DraggableTaskList';
 import { useDispatch } from '../context/PlannerContext';
 import { getIconById } from '../utils/icons';
 import { useTheme } from '../utils/theme';
@@ -13,6 +14,7 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate })
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('☀️');
   const [recurrence, setRecurrence] = useState({ type: 'once' });
+  const [tasks, setTasks] = useState([]);
   const emojiInputRef = useRef(null);
 
   useEffect(() => {
@@ -22,11 +24,13 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate })
       const resolved = getIconById(editGroup.icon);
       setIcon(resolved.emoji);
       setRecurrence(editGroup.recurrence || { type: 'once' });
+      setTasks(editGroup.tasks || []);
     } else {
       setName('');
       setDescription('');
       setIcon('☀️');
       setRecurrence({ type: 'once' });
+      setTasks([]);
     }
   }, [editGroup, visible]);
 
@@ -37,6 +41,7 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate })
         type: 'UPDATE_GROUP',
         payload: { id: editGroup.id, updates: { name: name.trim(), description: description.trim(), icon, recurrence } },
       });
+      dispatch({ type: 'REORDER_TASKS', payload: { groupId: editGroup.id, tasks } });
     } else {
       const createdDate = selectedDate
         ? selectedDate.toISOString().split('T')[0]
@@ -112,6 +117,13 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate })
 
         <Text style={[styles.label, styles.sectionLabel, { color: colors.textSecondary }]}>REPEATS</Text>
         <RecurrencePicker value={recurrence} onChange={setRecurrence} />
+
+        {editGroup && tasks.length > 0 && (
+          <>
+            <Text style={[styles.label, styles.sectionLabel, { color: colors.textSecondary }]}>ORGANIZE TASKS</Text>
+            <DraggableTaskList tasks={tasks} onReorder={setTasks} />
+          </>
+        )}
 
         <View style={styles.actions}>
           {editGroup && (

@@ -217,6 +217,20 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
             </>
           )}
 
+          <Text style={[styles.label, { color: colors.textSecondary }]}>SUB-TASKS</Text>
+
+          <DraggableSubtaskList
+            subtasks={subtasks}
+            onReorder={setSubtasks}
+            onUpdateName={(id, newName) =>
+              setSubtasks((prev) => prev.map((s) => (s.id === id ? { ...s, name: newName } : s)))
+            }
+            onRemove={(id) => setSubtasks((prev) => prev.filter((s) => s.id !== id))}
+            onAdd={(text) =>
+              setSubtasks((prev) => [...prev, { id: `st-${Date.now()}-${prev.length}`, name: text }])
+            }
+          />
+
           <Text style={[styles.label, { color: colors.textSecondary }]}>ALARM</Text>
           <View style={[styles.alarmRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.alarmLabel, { color: colors.text }]}>Enable Alarm</Text>
@@ -297,20 +311,6 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
               </View>
             </View>
           )}
-
-          <Text style={[styles.label, { color: colors.textSecondary }]}>SUB-TASKS</Text>
-
-          <DraggableSubtaskList
-            subtasks={subtasks}
-            onReorder={setSubtasks}
-            onUpdateName={(id, newName) =>
-              setSubtasks((prev) => prev.map((s) => (s.id === id ? { ...s, name: newName } : s)))
-            }
-            onRemove={(id) => setSubtasks((prev) => prev.filter((s) => s.id !== id))}
-            onAdd={(text) =>
-              setSubtasks((prev) => [...prev, { id: `st-${Date.now()}-${prev.length}`, name: text }])
-            }
-          />
 
           <View style={styles.actions}>
             {editTask && (
