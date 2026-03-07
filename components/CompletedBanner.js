@@ -72,6 +72,7 @@ function makeConfetti() {
 export default function CompletedBanner({ isCompleted }) {
   const [showConfetti, setShowConfetti] = useState(false);
   const [confettiKey, setConfettiKey] = useState(0);
+  const [visible, setVisible] = useState(isCompleted);
   // Initialize from prop so already-completed states show instantly on mount
   const bannerScale = useRef(new Animated.Value(isCompleted ? 1 : 0)).current;
   const wasCompleted = useRef(isCompleted);
@@ -81,6 +82,7 @@ export default function CompletedBanner({ isCompleted }) {
   useEffect(() => {
     if (isCompleted && !wasCompleted.current) {
       // Transitioned from incomplete → complete (user action)
+      setVisible(true);
       bannerScale.setValue(0);
       confettiPieces.current = makeConfetti();
       setConfettiKey((k) => k + 1);
@@ -97,14 +99,20 @@ export default function CompletedBanner({ isCompleted }) {
       wasCompleted.current = true;
       return () => clearTimeout(timer);
     } else if (!isCompleted && wasCompleted.current) {
-      // Un-completed — hide instantly (no animation)
-      bannerScale.setValue(0);
+      // Un-completed by user — fade out then unmount
       setShowConfetti(false);
       wasCompleted.current = false;
+      Animated.timing(bannerScale, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start(() => {
+        setVisible(false);
+      });
     }
   }, [isCompleted, bannerScale]);
 
-  if (!isCompleted) return null;
+  if (!visible) return null;
 
   return (
     <View style={styles.bannerContainer} pointerEvents="none">
