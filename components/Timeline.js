@@ -37,6 +37,14 @@ export default function Timeline({ selectedDate }) {
     [selectedDate]
   );
 
+  const isPastDay = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sel = new Date(selectedDate);
+    sel.setHours(0, 0, 0, 0);
+    return sel < today;
+  }, [selectedDate]);
+
   const visibleGroups = useMemo(
     () => groups.filter((g) => shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)),
     [groups, selectedDate]
@@ -160,6 +168,7 @@ export default function Timeline({ selectedDate }) {
                     isCompleted={completedTasks[dateKey]?.[task.id] || false}
                     completedTasks={completedTasks}
                     dispatch={dispatch}
+                    isPastDay={isPastDay}
                     onEdit={(t) => openEditTask(group.id, group.name, t, group.recurrence)}
                     onEditSubtask={(t, st) => openEditSubtask(group.id, t, st)}
                   />

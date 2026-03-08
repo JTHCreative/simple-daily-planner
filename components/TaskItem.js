@@ -6,7 +6,7 @@ import { useTheme } from '../utils/theme';
 const CIRCLE_SIZE = 22;
 const CIRCLE_LEFT = -33;
 
-const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, completedTasks, dispatch, onEdit, onEditSubtask }) {
+const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, completedTasks, dispatch, isPastDay, onEdit, onEditSubtask }) {
   const colors = useTheme();
   const [expanded, setExpanded] = useState(false);
 
@@ -15,20 +15,25 @@ const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, c
 
   const subtaskIds = subtasks.map((st) => st.id);
 
+  // A task that was not completed on a past day is "missed" and cannot be toggled
+  const isMissed = isPastDay && !isCompleted;
+
   const handleTap = useCallback(() => {
+    if (isPastDay) return; // Cannot toggle tasks on past days
     dispatch({ type: 'TOGGLE_TASK', payload: { taskId: task.id, dateKey, subtaskIds } });
-  }, [dispatch, task.id, dateKey, subtaskIds]);
+  }, [dispatch, task.id, dateKey, subtaskIds, isPastDay]);
 
   const handleLongPress = useCallback(() => {
     onEdit(task);
   }, [onEdit, task]);
 
   const toggleSubtask = useCallback((subtaskId) => {
+    if (isPastDay) return;
     dispatch({
       type: 'TOGGLE_SUBTASK',
       payload: { subtaskId, dateKey, taskId: task.id, allSubtaskIds: subtaskIds },
     });
-  }, [dispatch, dateKey, task.id, subtaskIds]);
+  }, [dispatch, dateKey, task.id, subtaskIds, isPastDay]);
 
   const completedCount = subtasks.filter(
     (st) => completedTasks[dateKey]?.[st.id]
@@ -37,20 +42,21 @@ const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, c
   return (
     <View>
       <Pressable
-        onPress={handleTap}
+        onPress={isPastDay ? undefined : handleTap}
         onLongPress={handleLongPress}
         delayLongPress={400}
         style={({ pressed }) => [
           styles.container,
           {
-            backgroundColor: pressed ? colors.surface : 'transparent',
+            backgroundColor: pressed && !isPastDay ? colors.surface : 'transparent',
             opacity: 1,
           },
         ]}
       >
         {/* Checkbox circle positioned on the timeline line */}
         <Pressable
-          onPress={handleTap}
+          onPress={isPastDay ? undefined : handleTap}
+          disabled={isPastDay}
           style={styles.circleHit}
           hitSlop={8}
         >
@@ -58,12 +64,13 @@ const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, c
             style={[
               styles.circle,
               {
-                borderColor: isCompleted ? colors.primary : colors.border,
+                borderColor: isMissed ? colors.textMuted : isCompleted ? colors.primary : colors.border,
                 backgroundColor: isCompleted ? colors.primary : colors.bg,
               },
             ]}
           >
             {isCompleted && <Text style={styles.checkmark}>✓</Text>}
+            {isMissed && <Text style={[styles.checkmark, { color: colors.textMuted }]}>✕</Text>}
           </View>
         </Pressable>
 
@@ -73,7 +80,7 @@ const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, c
               style={[
                 styles.name,
                 {
-                  color: isCompleted ? colors.textSecondary : colors.text,
+                  color: isMissed ? colors.textMuted : isCompleted ? colors.textSecondary : colors.text,
                   textDecorationLine: isCompleted ? 'line-through' : 'none',
                   flexShrink: 1,
                 },
@@ -125,33 +132,36 @@ const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, c
         <View style={styles.subtaskList}>
           {subtasks.map((st) => {
             const stCompleted = completedTasks[dateKey]?.[st.id] || false;
+            const stMissed = isPastDay && !stCompleted;
             return (
               <Pressable
                 key={st.id}
                 onPress={() => toggleSubtask(st.id)}
                 onLongPress={() => onEditSubtask && onEditSubtask(task, st)}
                 delayLongPress={400}
+                disabled={isPastDay}
                 style={({ pressed }) => [
                   styles.subtaskRow,
-                  { backgroundColor: pressed ? colors.surface : 'transparent' },
+                  { backgroundColor: pressed && !stMissed ? colors.surface : 'transparent' },
                 ]}
               >
                 <View
                   style={[
                     styles.subtaskCheck,
                     {
-                      borderColor: stCompleted ? colors.primary : colors.border,
+                      borderColor: stMissed ? colors.textMuted : stCompleted ? colors.primary : colors.border,
                       backgroundColor: stCompleted ? colors.primary : colors.bg,
                     },
                   ]}
                 >
                   {stCompleted && <Text style={styles.subtaskCheckmark}>✓</Text>}
+                  {stMissed && <Text style={[styles.subtaskCheckmark, { color: colors.textMuted }]}>✕</Text>}
                 </View>
                 <Text
                   style={[
                     styles.subtaskName,
                     {
-                      color: stCompleted ? colors.textSecondary : colors.text,
+                      color: stMissed ? colors.textMuted : stCompleted ? colors.textSecondary : colors.text,
                       textDecorationLine: stCompleted ? 'line-through' : 'none',
                     },
                   ]}
