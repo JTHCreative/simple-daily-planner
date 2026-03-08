@@ -70,7 +70,7 @@ const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, c
             ]}
           >
             {isCompleted && <Text style={styles.checkmark}>✓</Text>}
-            {isMissed && <Text style={[styles.checkmark, { color: colors.textMuted }]}>✕</Text>}
+            {isMissed && <Text style={[styles.checkmark, { color: colors.textMuted, fontSize: 9 }]}>✕</Text>}
           </View>
         </Pressable>
 
@@ -155,7 +155,7 @@ const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, c
                   ]}
                 >
                   {stCompleted && <Text style={styles.subtaskCheckmark}>✓</Text>}
-                  {stMissed && <Text style={[styles.subtaskCheckmark, { color: colors.textMuted }]}>✕</Text>}
+                  {stMissed && <Text style={[styles.subtaskCheckmark, { color: colors.textMuted, fontSize: 7 }]}>✕</Text>}
                 </View>
                 <Text
                   style={[
