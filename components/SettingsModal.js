@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Modal, Pressable, StyleSheet }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSettings, useDispatch } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
+import { getDeviceTimezone } from '../utils/dateHelpers';
 
 const THEME_OPTIONS = [
   { value: 'system', label: 'System' },
@@ -15,15 +16,28 @@ export default function SettingsModal({ visible, onClose }) {
   const settings = useSettings() || {};
   const dispatch = useDispatch();
   const [name, setName] = useState(settings.userName || '');
+  const [tzInput, setTzInput] = useState(settings.timezone || '');
 
   const currentMode = settings.themeMode || 'system';
+  const deviceTz = getDeviceTimezone();
+  const isAutoTz = !settings.timezone;
 
   const handleClose = () => {
     const trimmed = name.trim();
     if (trimmed !== (settings.userName || '')) {
       dispatch({ type: 'UPDATE_SETTINGS', payload: { userName: trimmed } });
     }
+    // Save timezone if changed
+    const tzTrimmed = tzInput.trim() || null;
+    if (tzTrimmed !== (settings.timezone || null)) {
+      dispatch({ type: 'UPDATE_SETTINGS', payload: { timezone: tzTrimmed } });
+    }
     onClose();
+  };
+
+  const resetTimezone = () => {
+    setTzInput('');
+    dispatch({ type: 'UPDATE_SETTINGS', payload: { timezone: null } });
   };
 
   const setThemeMode = (mode) => {
@@ -92,6 +106,38 @@ export default function SettingsModal({ visible, onClose }) {
                 </Pressable>
               ))}
             </View>
+          </View>
+
+          {/* Timezone Setting */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>TIMEZONE</Text>
+            <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                value={tzInput}
+                onChangeText={setTzInput}
+                placeholder={deviceTz || 'e.g. America/New_York'}
+                placeholderTextColor={colors.textMuted}
+                returnKeyType="done"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {tzInput.length > 0 && (
+                <TouchableOpacity onPress={resetTimezone} hitSlop={8}>
+                  <View style={[styles.clearBtn, { backgroundColor: colors.textMuted }]}>
+                    <Text style={styles.clearBtnText}>×</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+              {isAutoTz
+                ? `Auto-detected: ${deviceTz || 'unknown'}. Type to override.`
+                : `Using: ${settings.timezone}. Clear to auto-detect.`}
+            </Text>
+            <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+              Days reset at 3:00 AM local time.
+            </Text>
           </View>
         </View>
       </SafeAreaView>

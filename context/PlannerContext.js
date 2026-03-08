@@ -18,6 +18,7 @@ const DEFAULT_STATE = {
   settings: {
     userName: '',
     themeMode: 'system', // 'system' | 'light' | 'dark'
+    timezone: null, // null = auto-detect from device
   },
 };
 

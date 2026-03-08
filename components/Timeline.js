@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useGroups, useCompletedTasks, useDispatch } from '../context/PlannerContext';
+import { useGroups, useCompletedTasks, useDispatch, useSettings } from '../context/PlannerContext';
 import { getIconById } from '../utils/icons';
 import { shouldShowOnDate } from '../utils/recurrence';
+import { getEffectiveToday } from '../utils/dateHelpers';
 import TaskItem from './TaskItem';
 import TaskForm from './TaskForm';
 import GroupForm from './GroupForm';
@@ -19,6 +20,7 @@ export default function Timeline({ selectedDate }) {
   const groups = useGroups();
   const completedTasks = useCompletedTasks();
   const dispatch = useDispatch();
+  const settings = useSettings();
   const [groupFormOpen, setGroupFormOpen] = useState(false);
   const [editGroup, setEditGroup] = useState(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
@@ -38,12 +40,11 @@ export default function Timeline({ selectedDate }) {
   );
 
   const isPastDay = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getEffectiveToday(settings?.timezone);
     const sel = new Date(selectedDate);
     sel.setHours(0, 0, 0, 0);
     return sel < today;
-  }, [selectedDate]);
+  }, [selectedDate, settings?.timezone]);
 
   const visibleGroups = useMemo(
     () => groups.filter((g) => shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)),

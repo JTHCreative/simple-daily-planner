@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../utils/theme';
+import { useSettings } from '../context/PlannerContext';
+import { getEffectiveToday } from '../utils/dateHelpers';
 import CalendarModal from './CalendarModal';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -28,10 +30,10 @@ function formatWeekRange(date) {
 
 export default function DateHeader({ selectedDate, onDateChange, mode = 'daily' }) {
   const colors = useTheme();
+  const settings = useSettings();
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getEffectiveToday(settings?.timezone);
   const isToday = selectedDate.toDateString() === today.toDateString();
 
   const isWeekly = mode === 'weekly';

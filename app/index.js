@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Polyline } from 'react-native-svg';
@@ -9,15 +9,22 @@ import SwipeableDay from '../components/SwipeableDay';
 import SettingsModal from '../components/SettingsModal';
 import { useSettings } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
+import { getEffectiveToday } from '../utils/dateHelpers';
 
 export default function HomeScreen() {
   const colors = useTheme();
   const settings = useSettings();
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
+  const [selectedDate, setSelectedDate] = useState(() => getEffectiveToday(settings?.timezone));
+  const initializedWithTz = useRef(false);
+
+  // Re-sync selectedDate when timezone setting loads/changes (first load from storage)
+  useEffect(() => {
+    if (!initializedWithTz.current) {
+      initializedWithTz.current = true;
+      const effective = getEffectiveToday(settings?.timezone);
+      setSelectedDate(effective);
+    }
+  }, [settings?.timezone]);
   const [view, setView] = useState('daily');
   const [settingsVisible, setSettingsVisible] = useState(false);
 

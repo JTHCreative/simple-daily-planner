@@ -1,6 +1,8 @@
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { useState } from 'react';
 import { useTheme } from '../utils/theme';
+import { useSettings } from '../context/PlannerContext';
+import { getEffectiveToday } from '../utils/dateHelpers';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -18,11 +20,11 @@ function getFirstDayOfWeek(year, month) {
 
 export default function CalendarModal({ visible, onClose, selectedDate, onSelect }) {
   const colors = useTheme();
+  const settings = useSettings();
   const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getEffectiveToday(settings?.timezone);
 
   const daysInMonth = getDaysInMonth(viewYear, viewMonth);
   const firstDay = getFirstDayOfWeek(viewYear, viewMonth);
@@ -62,9 +64,7 @@ export default function CalendarModal({ visible, onClose, selectedDate, onSelect
   };
 
   const goToday = () => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    onSelect(d);
+    onSelect(getEffectiveToday(settings?.timezone));
     onClose();
   };
 
