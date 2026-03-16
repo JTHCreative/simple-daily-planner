@@ -9,6 +9,8 @@ import TaskForm from './TaskForm';
 import GroupForm from './GroupForm';
 import GroupArrange from './GroupArrange';
 import SubtaskEditForm from './SubtaskEditForm';
+import AddGroupChooser from './AddGroupChooser';
+import TemplateList from './TemplateList';
 import CompletedBanner from './CompletedBanner';
 import { useTheme } from '../utils/theme';
 
@@ -33,6 +35,9 @@ export default function Timeline({ selectedDate }) {
   const [editSubtaskGroupId, setEditSubtaskGroupId] = useState(null);
   const [editSubtaskTaskId, setEditSubtaskTaskId] = useState(null);
   const [editSubtask, setEditSubtask] = useState(null);
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [templateListOpen, setTemplateListOpen] = useState(false);
+  const [fromTemplate, setFromTemplate] = useState(null);
 
   const dateKey = useMemo(
     () => selectedDate.toISOString().split('T')[0],
@@ -69,11 +74,27 @@ export default function Timeline({ selectedDate }) {
 
   const openEditGroup = useCallback((group) => {
     setEditGroup(group);
+    setFromTemplate(null);
     setGroupFormOpen(true);
   }, []);
 
   const openAddGroup = useCallback(() => {
+    setChooserOpen(true);
+  }, []);
+
+  const handleCreateNew = useCallback(() => {
     setEditGroup(null);
+    setFromTemplate(null);
+    setGroupFormOpen(true);
+  }, []);
+
+  const handleOpenTemplateList = useCallback(() => {
+    setTemplateListOpen(true);
+  }, []);
+
+  const handleSelectTemplate = useCallback((template) => {
+    setEditGroup(null);
+    setFromTemplate(template);
     setGroupFormOpen(true);
   }, []);
 
@@ -219,11 +240,23 @@ export default function Timeline({ selectedDate }) {
         <Text style={[styles.addGroupText, { color: colors.textSecondary }]}>+ Add Group</Text>
       </TouchableOpacity>
 
+      <AddGroupChooser
+        visible={chooserOpen}
+        onClose={() => setChooserOpen(false)}
+        onCreateNew={handleCreateNew}
+        onFromTemplate={handleOpenTemplateList}
+      />
+      <TemplateList
+        visible={templateListOpen}
+        onClose={() => setTemplateListOpen(false)}
+        onSelect={handleSelectTemplate}
+      />
       <GroupForm
         visible={groupFormOpen}
-        onClose={() => setGroupFormOpen(false)}
+        onClose={() => { setGroupFormOpen(false); setFromTemplate(null); }}
         editGroup={editGroup}
         selectedDate={selectedDate}
+        fromTemplate={fromTemplate}
       />
       <TaskForm
         visible={taskFormOpen}
