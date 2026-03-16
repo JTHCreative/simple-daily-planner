@@ -9,12 +9,14 @@ const GroupsContext = createContext();
 const CompletionContext = createContext();
 const WeeklyGoalsContext = createContext();
 const SettingsContext = createContext();
+const TemplatesContext = createContext();
 const DispatchContext = createContext();
 
 const DEFAULT_STATE = {
   groups: [],
   completedTasks: {},
   weeklyGoals: [],
+  templates: [],
   settings: {
     userName: '',
     themeMode: 'system', // 'system' | 'light' | 'dark'
@@ -28,14 +30,27 @@ function reducer(state, action) {
       return { ...DEFAULT_STATE, ...action.payload };
 
     case 'ADD_GROUP': {
+      const createdDate = action.payload.createdDate || new Date().toISOString().split('T')[0];
+      const templateTasks = (action.payload.templateTasks || []).map((t) => ({
+        id: uuid(),
+        name: t.name,
+        description: t.description || '',
+        subtasks: (t.subtasks || []).map((st, i) => ({
+          id: `st-${Date.now()}-${i}`,
+          name: st.name,
+        })),
+        createdDate,
+        recurrence: t.recurrence || 'daily',
+        alarm: { enabled: false, hour: 8, minute: 0 },
+      }));
       const newGroup = {
         id: uuid(),
         name: action.payload.name,
         description: action.payload.description || '',
         icon: action.payload.icon || 'sun',
         recurrence: action.payload.recurrence || { type: 'once' },
-        createdDate: action.payload.createdDate || new Date().toISOString().split('T')[0],
-        tasks: [],
+        createdDate,
+        tasks: templateTasks,
         order: state.groups.length,
       };
       return { ...state, groups: [...state.groups, newGroup] };
@@ -256,6 +271,29 @@ function reducer(state, action) {
       return { ...state, settings };
     }
 
+    case 'SAVE_TEMPLATE': {
+      const template = {
+        id: uuid(),
+        name: action.payload.name,
+        description: action.payload.description || '',
+        icon: action.payload.icon || 'sun',
+        recurrence: action.payload.recurrence || { type: 'once' },
+        tasks: (action.payload.tasks || []).map((t) => ({
+          name: t.name,
+          description: t.description || '',
+          subtasks: (t.subtasks || []).map((st) => ({ name: st.name })),
+          recurrence: t.recurrence || 'daily',
+        })),
+        createdAt: new Date().toISOString(),
+      };
+      return { ...state, templates: [...(state.templates || []), template] };
+    }
+
+    case 'DELETE_TEMPLATE': {
+      const templates = (state.templates || []).filter((t) => t.id !== action.payload);
+      return { ...state, templates };
+    }
+
     case 'TOGGLE_GOAL_SUBTASK': {
       const { goalId, taskId, subtaskId } = action.payload;
       const weeklyGoals = state.weeklyGoals.map((g) => {
@@ -302,6 +340,7 @@ export function PlannerProvider({ children }) {
   const completedTasks = state.completedTasks;
   const weeklyGoals = state.weeklyGoals;
   const settings = state.settings;
+  const templates = state.templates || [];
 
   return (
     <DispatchContext.Provider value={dispatch}>
@@ -309,7 +348,9 @@ export function PlannerProvider({ children }) {
         <CompletionContext.Provider value={completedTasks}>
           <WeeklyGoalsContext.Provider value={weeklyGoals}>
             <SettingsContext.Provider value={settings}>
-              {children}
+              <TemplatesContext.Provider value={templates}>
+                {children}
+              </TemplatesContext.Provider>
             </SettingsContext.Provider>
           </WeeklyGoalsContext.Provider>
         </CompletionContext.Provider>
@@ -343,6 +384,12 @@ export function useSettings() {
   return ctx;
 }
 
+export function useTemplates() {
+  const ctx = useContext(TemplatesContext);
+  if (ctx === undefined) throw new Error('useTemplates must be used within PlannerProvider');
+  return ctx;
+}
+
 export function useDispatch() {
   const ctx = useContext(DispatchContext);
   if (!ctx) throw new Error('useDispatch must be used within PlannerProvider');
@@ -355,10 +402,11 @@ export function usePlanner() {
   const completedTasks = useContext(CompletionContext);
   const weeklyGoals = useContext(WeeklyGoalsContext);
   const settings = useContext(SettingsContext);
+  const templates = useContext(TemplatesContext);
   const dispatch = useContext(DispatchContext);
   if (dispatch === undefined) throw new Error('usePlanner must be used within PlannerProvider');
   return {
-    state: { groups, completedTasks, weeklyGoals, settings },
+    state: { groups, completedTasks, weeklyGoals, settings, templates },
     dispatch,
   };
 }

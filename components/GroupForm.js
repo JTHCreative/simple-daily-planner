@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
 import RecurrencePicker from './RecurrencePicker';
 import DraggableTaskList from './DraggableTaskList';
@@ -7,7 +7,7 @@ import { useDispatch } from '../context/PlannerContext';
 import { getIconById } from '../utils/icons';
 import { useTheme } from '../utils/theme';
 
-export default function GroupForm({ visible, onClose, editGroup, selectedDate }) {
+export default function GroupForm({ visible, onClose, editGroup, selectedDate, fromTemplate }) {
   const colors = useTheme();
   const dispatch = useDispatch();
   const [name, setName] = useState('');
@@ -15,9 +15,11 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate })
   const [icon, setIcon] = useState('☀️');
   const [recurrence, setRecurrence] = useState({ type: 'once' });
   const [tasks, setTasks] = useState([]);
+  const [templateSaved, setTemplateSaved] = useState(false);
   const emojiInputRef = useRef(null);
 
   useEffect(() => {
+    setTemplateSaved(false);
     if (editGroup) {
       setName(editGroup.name);
       setDescription(editGroup.description || '');
@@ -25,6 +27,13 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate })
       setIcon(resolved.emoji);
       setRecurrence(editGroup.recurrence || { type: 'once' });
       setTasks(editGroup.tasks || []);
+    } else if (fromTemplate) {
+      setName(fromTemplate.name);
+      setDescription(fromTemplate.description || '');
+      const resolved = getIconById(fromTemplate.icon);
+      setIcon(resolved.emoji);
+      setRecurrence(fromTemplate.recurrence || { type: 'once' });
+      setTasks([]);
     } else {
       setName('');
       setDescription('');
@@ -32,7 +41,7 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate })
       setRecurrence({ type: 'once' });
       setTasks([]);
     }
-  }, [editGroup, visible]);
+  }, [editGroup, fromTemplate, visible]);
 
   const handleSubmit = () => {
     if (!name.trim()) return;
@@ -48,7 +57,14 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate })
         : new Date().toISOString().split('T')[0];
       dispatch({
         type: 'ADD_GROUP',
-        payload: { name: name.trim(), description: description.trim(), icon, recurrence, createdDate },
+        payload: {
+          name: name.trim(),
+          description: description.trim(),
+          icon,
+          recurrence,
+          createdDate,
+          templateTasks: fromTemplate?.tasks || [],
+        },
       });
     }
     onClose();
@@ -61,8 +77,25 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate })
     }
   };
 
+  const handleSaveAsTemplate = () => {
+    dispatch({
+      type: 'SAVE_TEMPLATE',
+      payload: {
+        name: name.trim(),
+        description: description.trim(),
+        icon,
+        recurrence,
+        tasks: editGroup?.tasks || [],
+      },
+    });
+    setTemplateSaved(true);
+    Alert.alert('Template Saved', `"${name.trim()}" has been saved as a template.`);
+  };
+
+  const title = editGroup ? 'Edit Group' : fromTemplate ? 'New Group from Template' : 'New Group';
+
   return (
-    <BottomSheet visible={visible} onClose={onClose} title={editGroup ? 'Edit Group' : 'New Group'}>
+    <BottomSheet visible={visible} onClose={onClose} title={title}>
       <View style={styles.form}>
         <Text style={[styles.label, { color: colors.textSecondary }]}>GROUP NAME</Text>
         <TextInput
@@ -123,6 +156,53 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate })
             <Text style={[styles.label, styles.sectionLabel, { color: colors.textSecondary }]}>ORGANIZE TASKS</Text>
             <DraggableTaskList tasks={tasks} onReorder={setTasks} />
           </>
+        )}
+
+        {editGroup && (
+          <>
+            <Text style={[styles.label, styles.sectionLabel, { color: colors.textSecondary }]}>TEMPLATES</Text>
+            <TouchableOpacity
+              style={[
+                styles.templateBtn,
+                {
+                  backgroundColor: templateSaved ? colors.surface : colors.primaryLight,
+                  borderColor: templateSaved ? colors.border : colors.primary,
+                },
+              ]}
+              onPress={handleSaveAsTemplate}
+              disabled={!name.trim() || templateSaved}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.templateEmoji}>{templateSaved ? '✓' : '📋'}</Text>
+              <Text
+                style={[
+                  styles.templateBtnText,
+                  { color: templateSaved ? colors.textMuted : colors.primary },
+                ]}
+              >
+                {templateSaved ? 'Template Saved' : 'Save As Template'}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {fromTemplate && fromTemplate.tasks?.length > 0 && (
+          <View style={[styles.templateInfo, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.templateInfoLabel, { color: colors.textSecondary }]}>
+              TASKS FROM TEMPLATE
+            </Text>
+            {fromTemplate.tasks.map((t, i) => (
+              <View key={i} style={styles.templateTaskRow}>
+                <Text style={[styles.templateTaskBullet, { color: colors.textMuted }]}>•</Text>
+                <Text style={[styles.templateTaskName, { color: colors.text }]}>
+                  {t.name}
+                  {t.subtasks?.length > 0 && (
+                    <Text style={{ color: colors.textMuted }}> ({t.subtasks.length} subtask{t.subtasks.length !== 1 ? 's' : ''})</Text>
+                  )}
+                </Text>
+              </View>
+            ))}
+          </View>
         )}
 
         <View style={styles.actions}>
@@ -219,5 +299,48 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     marginTop: 12,
+  },
+  templateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  templateEmoji: {
+    fontSize: 16,
+  },
+  templateBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  templateInfo: {
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    gap: 6,
+  },
+  templateInfoLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  templateTaskRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  templateTaskBullet: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  templateTaskName: {
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
   },
 });
