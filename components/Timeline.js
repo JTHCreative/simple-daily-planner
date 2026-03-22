@@ -4,6 +4,7 @@ import { useGroups, useCompletedTasks, useDispatch, useSettings } from '../conte
 import { getIconById } from '../utils/icons';
 import { shouldShowOnDate } from '../utils/recurrence';
 import { getEffectiveToday } from '../utils/dateHelpers';
+import Svg, { Path } from 'react-native-svg';
 import TaskItem from './TaskItem';
 import TaskForm from './TaskForm';
 import GroupForm from './GroupForm';
@@ -38,6 +39,7 @@ export default function Timeline({ selectedDate }) {
   const [chooserOpen, setChooserOpen] = useState(false);
   const [templateListOpen, setTemplateListOpen] = useState(false);
   const [fromTemplate, setFromTemplate] = useState(null);
+  const [unlockedGroups, setUnlockedGroups] = useState({});
 
   const dateKey = useMemo(
     () => selectedDate.toISOString().split('T')[0],
@@ -157,12 +159,34 @@ export default function Timeline({ selectedDate }) {
                   </Text>
                 )}
               </View>
-              <TouchableOpacity
-                style={[styles.addTaskBtn, { backgroundColor: colors.addBtnBg, borderColor: colors.addBtnBorder, borderWidth: colors.addBtnBorder !== 'transparent' ? 1.5 : 0 }]}
-                onPress={() => openAddTask(group.id, group.name, group.recurrence)}
-              >
-                <Text style={[styles.addTaskPlus, { color: colors.addBtnText }]}>+ Add Task</Text>
-              </TouchableOpacity>
+              {isPastDay ? (
+                <TouchableOpacity
+                  style={[
+                    styles.unlockBtn,
+                    {
+                      backgroundColor: unlockedGroups[group.id] ? colors.primary : colors.surface,
+                      borderColor: unlockedGroups[group.id] ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() =>
+                    setUnlockedGroups((prev) => ({ ...prev, [group.id]: !prev[group.id] }))
+                  }
+                >
+                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                      fill={unlockedGroups[group.id] ? '#fff' : colors.textMuted}
+                    />
+                  </Svg>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.addTaskBtn, { backgroundColor: colors.addBtnBg, borderColor: colors.addBtnBorder, borderWidth: colors.addBtnBorder !== 'transparent' ? 1.5 : 0 }]}
+                  onPress={() => openAddTask(group.id, group.name, group.recurrence)}
+                >
+                  <Text style={[styles.addTaskPlus, { color: colors.addBtnText }]}>+ Add Task</Text>
+                </TouchableOpacity>
+              )}
               <CompletedBanner key={`${group.id}-${dateKey}`} isCompleted={allTasksDone} />
             </TouchableOpacity>
 
@@ -191,11 +215,12 @@ export default function Timeline({ selectedDate }) {
                     completedTasks={completedTasks}
                     dispatch={dispatch}
                     isPastDay={isPastDay}
+                    isUnlocked={!!unlockedGroups[group.id]}
                     onEdit={(t) => openEditTask(group.id, group.name, t, group.recurrence)}
                     onEditSubtask={(t, st) => openEditSubtask(group.id, t, st)}
                   />
                 ))}
-                {visibleTasks.length === 0 && (
+                {visibleTasks.length === 0 && !isPastDay && (
                   <TouchableOpacity
                     style={[styles.addFirstTask, { borderColor: colors.border }]}
                     onPress={() => openAddTask(group.id, group.name, group.recurrence)}
@@ -354,6 +379,14 @@ const styles = StyleSheet.create({
   addTaskPlus: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  unlockBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   taskArea: {
     position: 'relative',
