@@ -103,6 +103,7 @@ function reducer(state, action) {
         createdDate: action.payload.createdDate || new Date().toISOString().split('T')[0],
         recurrence: action.payload.recurrence || 'daily',
         alarm,
+        linkedWeeklyGoalId: action.payload.linkedWeeklyGoalId || null,
       };
       if (alarm.enabled) {
         scheduleTaskAlarm(taskId, task.name, alarm.hour, alarm.minute);

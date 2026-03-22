@@ -6,7 +6,7 @@ import { useTheme } from '../utils/theme';
 const CIRCLE_SIZE = 22;
 const CIRCLE_LEFT = -33;
 
-const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, completedTasks, dispatch, isPastDay, onEdit, onEditSubtask }) {
+const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, completedTasks, dispatch, isPastDay, isUnlocked, onEdit, onEditSubtask }) {
   const colors = useTheme();
   const [expanded, setExpanded] = useState(false);
 
@@ -15,25 +15,27 @@ const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, c
 
   const subtaskIds = subtasks.map((st) => st.id);
 
-  // A task that was not completed on a past day is "missed" and cannot be toggled
-  const isMissed = isPastDay && !isCompleted;
+  // A task is locked if it's a past day and the group hasn't been unlocked
+  const isLocked = isPastDay && !isUnlocked;
+  // A task that was not completed on a past day is "missed" and cannot be toggled (unless unlocked)
+  const isMissed = isLocked && !isCompleted;
 
   const handleTap = useCallback(() => {
-    if (isPastDay) return; // Cannot toggle tasks on past days
+    if (isLocked) return;
     dispatch({ type: 'TOGGLE_TASK', payload: { taskId: task.id, dateKey, subtaskIds } });
-  }, [dispatch, task.id, dateKey, subtaskIds, isPastDay]);
+  }, [dispatch, task.id, dateKey, subtaskIds, isLocked]);
 
   const handleLongPress = useCallback(() => {
     onEdit(task);
   }, [onEdit, task]);
 
   const toggleSubtask = useCallback((subtaskId) => {
-    if (isPastDay) return;
+    if (isLocked) return;
     dispatch({
       type: 'TOGGLE_SUBTASK',
       payload: { subtaskId, dateKey, taskId: task.id, allSubtaskIds: subtaskIds },
     });
-  }, [dispatch, dateKey, task.id, subtaskIds, isPastDay]);
+  }, [dispatch, dateKey, task.id, subtaskIds, isLocked]);
 
   const completedCount = subtasks.filter(
     (st) => completedTasks[dateKey]?.[st.id]
@@ -42,21 +44,21 @@ const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, c
   return (
     <View>
       <Pressable
-        onPress={isPastDay ? undefined : handleTap}
+        onPress={isLocked ? undefined : handleTap}
         onLongPress={handleLongPress}
         delayLongPress={400}
         style={({ pressed }) => [
           styles.container,
           {
-            backgroundColor: pressed && !isPastDay ? colors.surface : 'transparent',
+            backgroundColor: pressed && !isLocked ? colors.surface : 'transparent',
             opacity: 1,
           },
         ]}
       >
         {/* Checkbox circle positioned on the timeline line */}
         <Pressable
-          onPress={isPastDay ? undefined : handleTap}
-          disabled={isPastDay}
+          onPress={isLocked ? undefined : handleTap}
+          disabled={isLocked}
           style={styles.circleHit}
           hitSlop={8}
         >
@@ -132,14 +134,14 @@ const TaskItem = memo(function TaskItem({ task, groupId, dateKey, isCompleted, c
         <View style={styles.subtaskList}>
           {subtasks.map((st) => {
             const stCompleted = completedTasks[dateKey]?.[st.id] || false;
-            const stMissed = isPastDay && !stCompleted;
+            const stMissed = isLocked && !stCompleted;
             return (
               <Pressable
                 key={st.id}
                 onPress={() => toggleSubtask(st.id)}
                 onLongPress={() => onEditSubtask && onEditSubtask(task, st)}
                 delayLongPress={400}
-                disabled={isPastDay}
+                disabled={isLocked}
                 style={({ pressed }) => [
                   styles.subtaskRow,
                   { backgroundColor: pressed && !stMissed ? colors.surface : 'transparent' },
