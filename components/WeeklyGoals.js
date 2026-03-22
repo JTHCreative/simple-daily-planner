@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet } from 'react-native';
-import { useWeeklyGoals, useDispatch } from '../context/PlannerContext';
+import { useWeeklyGoals, useGroups, useDispatch } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 import WeeklyGoalForm from './WeeklyGoalForm';
 import WeeklyTaskForm from './WeeklyTaskForm';
@@ -18,6 +18,7 @@ function getWeekKey(date) {
 export default function WeeklyGoals({ selectedDate }) {
   const colors = useTheme();
   const weeklyGoals = useWeeklyGoals();
+  const groups = useGroups();
   const dispatch = useDispatch();
   const [expandedGoals, setExpandedGoals] = useState({});
   const [expandedTasks, setExpandedTasks] = useState({});
@@ -46,6 +47,19 @@ export default function WeeklyGoals({ selectedDate }) {
     () => weeklyGoals.filter((g) => g.weekKey === weekKey),
     [weeklyGoals, weekKey]
   );
+
+  // Count linked daily tasks per weekly goal
+  const linkedDailyTaskCounts = useMemo(() => {
+    const counts = {};
+    for (const group of groups) {
+      for (const task of group.tasks || []) {
+        if (task.linkedWeeklyGoalId) {
+          counts[task.linkedWeeklyGoalId] = (counts[task.linkedWeeklyGoalId] || 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }, [groups]);
 
   // Count completed tasks across all goals
   const { totalTasks, completedTaskCount } = useMemo(() => {
@@ -158,6 +172,15 @@ export default function WeeklyGoals({ selectedDate }) {
                   <Text style={[styles.goalMeta, { color: colors.textMuted }]}>
                     {tasksDone}/{tasks.length} tasks
                   </Text>
+                )}
+                {linkedDailyTaskCounts[goal.id] > 0 && (
+                  <View style={styles.linkedBadgeRow}>
+                    <View style={[styles.linkedBadge, { backgroundColor: colors.primaryLight }]}>
+                      <Text style={[styles.linkedBadgeText, { color: colors.primary }]}>
+                        {linkedDailyTaskCounts[goal.id]} daily {linkedDailyTaskCounts[goal.id] === 1 ? 'task' : 'tasks'} linked
+                      </Text>
+                    </View>
+                  </View>
                 )}
               </View>
               <View
@@ -435,6 +458,19 @@ const styles = StyleSheet.create({
   },
   goalMeta: {
     fontSize: 12,
+  },
+  linkedBadgeRow: {
+    flexDirection: 'row',
+    marginTop: 2,
+  },
+  linkedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  linkedBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   // Task list
   taskList: {

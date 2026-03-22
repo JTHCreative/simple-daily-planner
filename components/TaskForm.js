@@ -1,10 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
 import DraggableSubtaskList from './DraggableSubtaskList';
-import { useDispatch } from '../context/PlannerContext';
+import { useDispatch, useWeeklyGoals } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 import { requestNotificationPermissions } from '../utils/notifications';
+
+function getWeekKey(date) {
+  if (!date) return null;
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day;
+  const weekStart = new Date(d.setDate(diff));
+  return weekStart.toISOString().split('T')[0];
+}
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -17,6 +26,7 @@ function formatDate(date) {
 export default function TaskForm({ visible, onClose, groupId, groupName, editTask, selectedDate, groupRecurrence }) {
   const colors = useTheme();
   const dispatch = useDispatch();
+  const weeklyGoals = useWeeklyGoals();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [subtasks, setSubtasks] = useState([]);
@@ -26,8 +36,15 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
   const [alarmMinute, setAlarmMinute] = useState(0);
   const [editingField, setEditingField] = useState(null); // 'hour' | 'minute' | null
   const [editingValue, setEditingValue] = useState('');
+  const [linkedWeeklyGoalId, setLinkedWeeklyGoalId] = useState(null);
 
   const isGroupDaily = groupRecurrence?.type === 'daily';
+
+  const weekKey = useMemo(() => getWeekKey(selectedDate), [selectedDate]);
+  const currentWeekGoals = useMemo(
+    () => weeklyGoals.filter((g) => g.weekKey === weekKey),
+    [weeklyGoals, weekKey]
+  );
 
   useEffect(() => {
     if (editTask) {
@@ -38,6 +55,7 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
       setAlarmEnabled(editTask.alarm?.enabled || false);
       setAlarmHour(editTask.alarm?.hour ?? 8);
       setAlarmMinute(editTask.alarm?.minute ?? 0);
+      setLinkedWeeklyGoalId(editTask.linkedWeeklyGoalId || null);
     } else {
       setName('');
       setDescription('');
@@ -46,6 +64,7 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
       setAlarmEnabled(false);
       setAlarmHour(8);
       setAlarmMinute(0);
+      setLinkedWeeklyGoalId(null);
     }
   }, [editTask, visible]);
 
@@ -103,7 +122,7 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
         payload: {
           groupId,
           taskId: editTask.id,
-          updates: { name: name.trim(), description: description.trim(), subtasks, recurrence, alarm },
+          updates: { name: name.trim(), description: description.trim(), subtasks, recurrence, alarm, linkedWeeklyGoalId },
         },
       });
     } else {
@@ -112,7 +131,7 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
         : new Date().toISOString().split('T')[0];
       dispatch({
         type: 'ADD_TASK',
-        payload: { groupId, name: name.trim(), description: description.trim(), subtasks, createdDate, recurrence, alarm },
+        payload: { groupId, name: name.trim(), description: description.trim(), subtasks, createdDate, recurrence, alarm, linkedWeeklyGoalId },
       });
     }
     onClose();
@@ -230,6 +249,57 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
               setSubtasks((prev) => [...prev, { id: `st-${Date.now()}-${prev.length}`, name: text }])
             }
           />
+
+          {currentWeekGoals.length > 0 && (
+            <>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>LINKED WEEKLY GOAL</Text>
+              <View style={[styles.weeklyGoalPicker, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <TouchableOpacity
+                  style={[
+                    styles.weeklyGoalOption,
+                    !linkedWeeklyGoalId && { backgroundColor: colors.primaryLight },
+                  ]}
+                  onPress={() => setLinkedWeeklyGoalId(null)}
+                >
+                  <Text
+                    style={[
+                      styles.weeklyGoalOptionText,
+                      { color: !linkedWeeklyGoalId ? colors.primary : colors.textMuted },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    None
+                  </Text>
+                </TouchableOpacity>
+                {currentWeekGoals.map((goal) => (
+                  <TouchableOpacity
+                    key={goal.id}
+                    style={[
+                      styles.weeklyGoalOption,
+                      linkedWeeklyGoalId === goal.id && { backgroundColor: colors.primaryLight },
+                    ]}
+                    onPress={() => setLinkedWeeklyGoalId(goal.id)}
+                  >
+                    <Text style={styles.weeklyGoalEmoji}>{goal.icon || '🎯'}</Text>
+                    <Text
+                      style={[
+                        styles.weeklyGoalOptionText,
+                        { color: linkedWeeklyGoalId === goal.id ? colors.primary : colors.text },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {goal.text}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={[styles.weeklyGoalHint, { color: colors.textMuted }]}>
+                {linkedWeeklyGoalId
+                  ? 'This task contributes to the selected weekly goal'
+                  : 'Optionally link this task to a weekly goal'}
+              </Text>
+            </>
+          )}
 
           <Text style={[styles.label, { color: colors.textSecondary }]}>ALARM</Text>
           <View style={[styles.alarmRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -397,6 +467,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   recurrenceHint: {
+    fontSize: 12,
+    marginTop: -4,
+  },
+  weeklyGoalPicker: {
+    borderRadius: 10,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+  },
+  weeklyGoalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    gap: 8,
+  },
+  weeklyGoalEmoji: {
+    fontSize: 16,
+  },
+  weeklyGoalOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+  },
+  weeklyGoalHint: {
     fontSize: 12,
     marginTop: -4,
   },
