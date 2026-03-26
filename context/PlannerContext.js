@@ -82,9 +82,11 @@ function reducer(state, action) {
       const isDailyGroup = deletedGroup?.recurrence?.type === 'daily';
 
       if (isDailyGroup && groupDeletedDate) {
-        // Soft-delete: keep the group but mark it with a deletedDate
+        // Soft-delete: add a hidden range starting from the deleted date
         const groups = state.groups.map((g) =>
-          g.id === delGroupId ? { ...g, deletedDate: groupDeletedDate } : g
+          g.id === delGroupId
+            ? { ...g, hiddenRanges: [...(g.hiddenRanges || []), { start: groupDeletedDate }] }
+            : g
         );
         return { ...state, groups };
       }
@@ -116,15 +118,24 @@ function reducer(state, action) {
       const newName = action.payload.name.trim().toLowerCase();
 
       // Check for a soft-deleted task with the same name — revive it instead of duplicating
+      const isHidden = (t) =>
+        t.hiddenRanges?.length > 0 && !t.hiddenRanges[t.hiddenRanges.length - 1].end;
       const existingTask = targetGroup?.tasks.find(
-        (t) => t.deletedDate && t.name.trim().toLowerCase() === newName
+        (t) => isHidden(t) && t.name.trim().toLowerCase() === newName
       );
 
       if (existingTask) {
+        const revivedDate = action.payload.createdDate || new Date().toISOString().split('T')[0];
         const alarm = action.payload.alarm || existingTask.alarm || { enabled: false, hour: 8, minute: 0 };
         if (alarm.enabled) {
           scheduleTaskAlarm(existingTask.id, action.payload.name, alarm.hour, alarm.minute);
         }
+        // Close the open-ended hidden range so the task is visible again from today
+        const closedRanges = (existingTask.hiddenRanges || []).map((r, i) =>
+          i === existingTask.hiddenRanges.length - 1 && !r.end
+            ? { ...r, end: revivedDate }
+            : r
+        );
         const groups = state.groups.map((g) =>
           g.id === action.payload.groupId
             ? {
@@ -139,7 +150,7 @@ function reducer(state, action) {
                         recurrence: action.payload.recurrence || t.recurrence,
                         alarm,
                         linkedWeeklyGoalId: action.payload.linkedWeeklyGoalId || null,
-                        deletedDate: undefined,
+                        hiddenRanges: closedRanges,
                       }
                     : t
                 ),
@@ -224,10 +235,17 @@ function reducer(state, action) {
       const isDailyGroup = delTaskGroup?.recurrence?.type === 'daily';
 
       if (isDailyTask && isDailyGroup && taskDeletedDate) {
-        // Soft-delete: keep the task but mark it so it's hidden from this date onward
+        // Soft-delete: add a hidden range starting from the deleted date
         const groups = state.groups.map((g) =>
           g.id === delTaskGroupId
-            ? { ...g, tasks: g.tasks.map((t) => t.id === delTaskId ? { ...t, deletedDate: taskDeletedDate } : t) }
+            ? {
+                ...g,
+                tasks: g.tasks.map((t) =>
+                  t.id === delTaskId
+                    ? { ...t, hiddenRanges: [...(t.hiddenRanges || []), { start: taskDeletedDate }] }
+                    : t
+                ),
+              }
             : g
         );
         return { ...state, groups };
@@ -390,11 +408,19 @@ function reducer(state, action) {
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
       const cutoff = oneYearAgo.toISOString().split('T')[0];
 
+      // Permanently remove tasks/groups that have been hidden (open-ended) for over a year
+      const isStaleHidden = (item) => {
+        const ranges = item.hiddenRanges;
+        if (!ranges?.length) return false;
+        const last = ranges[ranges.length - 1];
+        return !last.end && last.start < cutoff;
+      };
+
       const groups = state.groups
-        .filter((g) => !(g.deletedDate && g.deletedDate < cutoff))
+        .filter((g) => !isStaleHidden(g))
         .map((g) => ({
           ...g,
-          tasks: g.tasks.filter((t) => !(t.deletedDate && t.deletedDate < cutoff)),
+          tasks: g.tasks.filter((t) => !isStaleHidden(t)),
         }));
       return { ...state, groups };
     }
