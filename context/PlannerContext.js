@@ -112,6 +112,43 @@ function reducer(state, action) {
     }
 
     case 'ADD_TASK': {
+      const targetGroup = state.groups.find((g) => g.id === action.payload.groupId);
+      const newName = action.payload.name.trim().toLowerCase();
+
+      // Check for a soft-deleted task with the same name — revive it instead of duplicating
+      const existingTask = targetGroup?.tasks.find(
+        (t) => t.deletedDate && t.name.trim().toLowerCase() === newName
+      );
+
+      if (existingTask) {
+        const alarm = action.payload.alarm || existingTask.alarm || { enabled: false, hour: 8, minute: 0 };
+        if (alarm.enabled) {
+          scheduleTaskAlarm(existingTask.id, action.payload.name, alarm.hour, alarm.minute);
+        }
+        const groups = state.groups.map((g) =>
+          g.id === action.payload.groupId
+            ? {
+                ...g,
+                tasks: g.tasks.map((t) =>
+                  t.id === existingTask.id
+                    ? {
+                        ...t,
+                        name: action.payload.name,
+                        description: action.payload.description || '',
+                        subtasks: action.payload.subtasks || t.subtasks,
+                        recurrence: action.payload.recurrence || t.recurrence,
+                        alarm,
+                        linkedWeeklyGoalId: action.payload.linkedWeeklyGoalId || null,
+                        deletedDate: undefined,
+                      }
+                    : t
+                ),
+              }
+            : g
+        );
+        return { ...state, groups };
+      }
+
       const taskId = uuid();
       const alarm = action.payload.alarm || { enabled: false, hour: 8, minute: 0 };
       const task = {
