@@ -64,14 +64,33 @@ function reducer(state, action) {
     }
 
     case 'DELETE_GROUP': {
+      // Support both legacy string payload and new object payload
+      const { groupId: delGroupId, deletedDate: groupDeletedDate } =
+        typeof action.payload === 'string'
+          ? { groupId: action.payload, deletedDate: null }
+          : action.payload;
+
+      const deletedGroup = state.groups.find((g) => g.id === delGroupId);
+
       // Cancel alarms for all tasks in the deleted group
-      const deletedGroup = state.groups.find((g) => g.id === action.payload);
       if (deletedGroup) {
         deletedGroup.tasks.forEach((t) => {
           if (t.alarm?.enabled) cancelTaskAlarm(t.id);
         });
       }
-      const groups = state.groups.filter((g) => g.id !== action.payload);
+
+      const isDailyGroup = deletedGroup?.recurrence?.type === 'daily';
+
+      if (isDailyGroup && groupDeletedDate) {
+        // Soft-delete: keep the group but mark it with a deletedDate
+        const groups = state.groups.map((g) =>
+          g.id === delGroupId ? { ...g, deletedDate: groupDeletedDate } : g
+        );
+        return { ...state, groups };
+      }
+
+      // Hard-delete one-off groups
+      const groups = state.groups.filter((g) => g.id !== delGroupId);
       return { ...state, groups };
     }
 
@@ -154,16 +173,33 @@ function reducer(state, action) {
     }
 
     case 'DELETE_TASK': {
+      const { groupId: delTaskGroupId, taskId: delTaskId, deletedDate: taskDeletedDate } = action.payload;
+
+      const delTaskGroup = state.groups.find((g) => g.id === delTaskGroupId);
+      const deletedTask = delTaskGroup?.tasks.find((t) => t.id === delTaskId);
+
       // Cancel alarm if the deleted task had one
-      const deletedTask = state.groups
-        .find((g) => g.id === action.payload.groupId)
-        ?.tasks.find((t) => t.id === action.payload.taskId);
       if (deletedTask?.alarm?.enabled) {
-        cancelTaskAlarm(action.payload.taskId);
+        cancelTaskAlarm(delTaskId);
       }
+
+      const isDailyTask = !deletedTask?.recurrence || deletedTask?.recurrence === 'daily';
+      const isDailyGroup = delTaskGroup?.recurrence?.type === 'daily';
+
+      if (isDailyTask && isDailyGroup && taskDeletedDate) {
+        // Soft-delete: keep the task but mark it so it's hidden from this date onward
+        const groups = state.groups.map((g) =>
+          g.id === delTaskGroupId
+            ? { ...g, tasks: g.tasks.map((t) => t.id === delTaskId ? { ...t, deletedDate: taskDeletedDate } : t) }
+            : g
+        );
+        return { ...state, groups };
+      }
+
+      // Hard-delete one-off tasks
       const groups = state.groups.map((g) =>
-        g.id === action.payload.groupId
-          ? { ...g, tasks: g.tasks.filter((t) => t.id !== action.payload.taskId) }
+        g.id === delTaskGroupId
+          ? { ...g, tasks: g.tasks.filter((t) => t.id !== delTaskId) }
           : g
       );
       return { ...state, groups };

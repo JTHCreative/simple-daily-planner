@@ -139,7 +139,10 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
 
   const handleDelete = () => {
     if (editTask) {
-      dispatch({ type: 'DELETE_TASK', payload: { groupId, taskId: editTask.id } });
+      const deletedDate = selectedDate
+        ? selectedDate.toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+      dispatch({ type: 'DELETE_TASK', payload: { groupId, taskId: editTask.id, deletedDate } });
       onClose();
     }
   };

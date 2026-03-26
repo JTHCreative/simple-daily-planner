@@ -54,8 +54,13 @@ export default function Timeline({ selectedDate }) {
   }, [selectedDate, settings?.timezone]);
 
   const visibleGroups = useMemo(
-    () => groups.filter((g) => shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)),
-    [groups, selectedDate]
+    () => groups.filter((g) => {
+      if (!shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)) return false;
+      // Hide soft-deleted daily groups on/after their deletedDate
+      if (g.deletedDate && dateKey >= g.deletedDate) return false;
+      return true;
+    }),
+    [groups, selectedDate, dateKey]
   );
 
   const openAddTask = useCallback((groupId, groupName, groupRecurrence) => {
@@ -125,6 +130,8 @@ export default function Timeline({ selectedDate }) {
         const isGroupDaily = group.recurrence?.type === 'daily';
         const visibleTasks = isGroupDaily
           ? group.tasks.filter((t) => {
+              // Hide soft-deleted tasks on/after their deletedDate
+              if (t.deletedDate && dateKey >= t.deletedDate) return false;
               if (!t.recurrence || t.recurrence === 'daily') return true;
               return t.createdDate === dateKey;
             })
