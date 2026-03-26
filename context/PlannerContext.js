@@ -260,6 +260,86 @@ function reducer(state, action) {
       return { ...state, groups };
     }
 
+    case 'MOVE_TASK': {
+      const { groupId: srcGroupId, taskId: moveTaskId, targetDate, sourceDate } = action.payload;
+
+      const srcGroup = state.groups.find((g) => g.id === srcGroupId);
+      const task = srcGroup?.tasks.find((t) => t.id === moveTaskId);
+      if (!task || !srcGroup) return state;
+
+      // Cancel alarm on moved task
+      if (task.alarm?.enabled) cancelTaskAlarm(moveTaskId);
+
+      // Build moved task as a one-off on the target date
+      const movedTask = {
+        id: uuid(),
+        name: task.name,
+        description: task.description || '',
+        subtasks: (task.subtasks || []).map((st) => ({ id: `st-${Date.now()}-${Math.random()}`, name: st.name })),
+        createdDate: targetDate,
+        recurrence: 'once',
+        alarm: { enabled: false, hour: task.alarm?.hour ?? 8, minute: task.alarm?.minute ?? 0 },
+        linkedWeeklyGoalId: task.linkedWeeklyGoalId || null,
+      };
+
+      // Find a group with the same name that's visible on the target date
+      const isVisibleOnDate = (g, date) => {
+        if (g.hiddenRanges?.some((r) => date >= r.start && (!r.end || date < r.end))) return false;
+        if (g.recurrence?.type === 'daily') return true;
+        return g.createdDate === date;
+      };
+      const targetGroup = state.groups.find(
+        (g) => g.name === srcGroup.name && isVisibleOnDate(g, targetDate)
+      );
+
+      let groups = state.groups;
+
+      // Remove task from source: soft-delete for daily tasks, hard-delete for one-off
+      const isDailyTask = !task.recurrence || task.recurrence === 'daily';
+      const isDailyGroup = srcGroup.recurrence?.type === 'daily';
+      if (isDailyTask && isDailyGroup && sourceDate) {
+        groups = groups.map((g) =>
+          g.id === srcGroupId
+            ? {
+                ...g,
+                tasks: g.tasks.map((t) =>
+                  t.id === moveTaskId
+                    ? { ...t, hiddenRanges: [...(t.hiddenRanges || []), { start: sourceDate }] }
+                    : t
+                ),
+              }
+            : g
+        );
+      } else {
+        groups = groups.map((g) =>
+          g.id === srcGroupId
+            ? { ...g, tasks: g.tasks.filter((t) => t.id !== moveTaskId) }
+            : g
+        );
+      }
+
+      // Add to target group, or create a new one-off group
+      if (targetGroup) {
+        groups = groups.map((g) =>
+          g.id === targetGroup.id ? { ...g, tasks: [...g.tasks, movedTask] } : g
+        );
+      } else {
+        const newGroup = {
+          id: uuid(),
+          name: srcGroup.name,
+          description: srcGroup.description || '',
+          icon: srcGroup.icon || 'sun',
+          recurrence: { type: 'once' },
+          createdDate: targetDate,
+          tasks: [movedTask],
+          order: groups.length,
+        };
+        groups = [...groups, newGroup];
+      }
+
+      return { ...state, groups };
+    }
+
     case 'TOGGLE_TASK': {
       const { taskId, dateKey, subtaskIds } = action.payload;
       const completed = { ...state.completedTasks };
