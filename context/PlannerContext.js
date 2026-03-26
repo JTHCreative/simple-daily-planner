@@ -348,6 +348,20 @@ function reducer(state, action) {
       return { ...state, weeklyGoals };
     }
 
+    case 'PURGE_STALE_DELETED': {
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      const cutoff = oneYearAgo.toISOString().split('T')[0];
+
+      const groups = state.groups
+        .filter((g) => !(g.deletedDate && g.deletedDate < cutoff))
+        .map((g) => ({
+          ...g,
+          tasks: g.tasks.filter((t) => !(t.deletedDate && t.deletedDate < cutoff)),
+        }));
+      return { ...state, groups };
+    }
+
     default:
       return state;
   }
@@ -363,6 +377,8 @@ export function PlannerProvider({ children }) {
         dispatch({ type: 'LOAD_DATA', payload: saved });
       }
       isLoaded.current = true;
+      // Purge soft-deleted tasks/groups older than 1 year
+      dispatch({ type: 'PURGE_STALE_DELETED' });
     });
   }, []);
 
