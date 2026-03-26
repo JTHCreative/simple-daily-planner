@@ -72,7 +72,10 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate, f
 
   const handleDelete = () => {
     if (editGroup) {
-      dispatch({ type: 'DELETE_GROUP', payload: editGroup.id });
+      const deletedDate = selectedDate
+        ? selectedDate.toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+      dispatch({ type: 'DELETE_GROUP', payload: { groupId: editGroup.id, deletedDate } });
       onClose();
     }
   };

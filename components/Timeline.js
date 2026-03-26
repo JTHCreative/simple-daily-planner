@@ -53,9 +53,18 @@ export default function Timeline({ selectedDate }) {
     return sel < today;
   }, [selectedDate, settings?.timezone]);
 
+  const isDateHidden = useCallback((hiddenRanges, date) => {
+    if (!hiddenRanges?.length) return false;
+    return hiddenRanges.some((r) => date >= r.start && (!r.end || date < r.end));
+  }, []);
+
   const visibleGroups = useMemo(
-    () => groups.filter((g) => shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)),
-    [groups, selectedDate]
+    () => groups.filter((g) => {
+      if (!shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)) return false;
+      if (isDateHidden(g.hiddenRanges, dateKey)) return false;
+      return true;
+    }),
+    [groups, selectedDate, dateKey, isDateHidden]
   );
 
   const openAddTask = useCallback((groupId, groupName, groupRecurrence) => {
@@ -125,6 +134,8 @@ export default function Timeline({ selectedDate }) {
         const isGroupDaily = group.recurrence?.type === 'daily';
         const visibleTasks = isGroupDaily
           ? group.tasks.filter((t) => {
+              // Hide tasks during their hidden date ranges
+              if (isDateHidden(t.hiddenRanges, dateKey)) return false;
               if (!t.recurrence || t.recurrence === 'daily') return true;
               return t.createdDate === dateKey;
             })

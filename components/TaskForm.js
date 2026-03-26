@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
+import CalendarModal from './CalendarModal';
 import DraggableSubtaskList from './DraggableSubtaskList';
 import { useDispatch, useWeeklyGoals } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
@@ -37,6 +38,7 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
   const [editingField, setEditingField] = useState(null); // 'hour' | 'minute' | null
   const [editingValue, setEditingValue] = useState('');
   const [linkedWeeklyGoalId, setLinkedWeeklyGoalId] = useState(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const isGroupDaily = groupRecurrence?.type === 'daily';
 
@@ -137,9 +139,26 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
     onClose();
   };
 
+  const handleMoveToDate = (newDate) => {
+    if (!editTask) return;
+    const targetDate = newDate.toISOString().split('T')[0];
+    const sourceDate = selectedDate
+      ? selectedDate.toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+    if (targetDate === sourceDate) return;
+    dispatch({
+      type: 'MOVE_TASK',
+      payload: { groupId, taskId: editTask.id, targetDate, sourceDate },
+    });
+    onClose();
+  };
+
   const handleDelete = () => {
     if (editTask) {
-      dispatch({ type: 'DELETE_TASK', payload: { groupId, taskId: editTask.id } });
+      const deletedDate = selectedDate
+        ? selectedDate.toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+      dispatch({ type: 'DELETE_TASK', payload: { groupId, taskId: editTask.id, deletedDate } });
       onClose();
     }
   };
@@ -156,10 +175,20 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
                 </View>
               )}
               {selectedDate && (
-                <View style={styles.contextRow}>
+                <TouchableOpacity
+                  style={styles.contextRow}
+                  onPress={editTask ? () => setCalendarOpen(true) : undefined}
+                  disabled={!editTask}
+                  activeOpacity={editTask ? 0.6 : 1}
+                >
                   <Text style={[styles.contextLabel, { color: colors.textMuted }]}>Date</Text>
-                  <Text style={[styles.contextValue, { color: colors.text }]}>{formatDate(selectedDate)}</Text>
-                </View>
+                  <Text style={[styles.contextValue, { color: editTask ? colors.primary : colors.text }]}>
+                    {formatDate(selectedDate)}
+                  </Text>
+                  {editTask && (
+                    <Text style={[styles.moveHint, { color: colors.textMuted }]}>Tap to move</Text>
+                  )}
+                </TouchableOpacity>
               )}
             </View>
           )}
@@ -402,6 +431,14 @@ export default function TaskForm({ visible, onClose, groupId, groupName, editTas
             </TouchableOpacity>
           </View>
       </View>
+      {editTask && selectedDate && (
+        <CalendarModal
+          visible={calendarOpen}
+          onClose={() => setCalendarOpen(false)}
+          selectedDate={selectedDate}
+          onSelect={handleMoveToDate}
+        />
+      )}
     </BottomSheet>
   );
 }
@@ -440,6 +477,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  moveHint: {
+    fontSize: 11,
+    marginLeft: 'auto',
   },
   contextLabel: {
     fontSize: 12,

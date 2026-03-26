@@ -64,14 +64,35 @@ function reducer(state, action) {
     }
 
     case 'DELETE_GROUP': {
+      // Support both legacy string payload and new object payload
+      const { groupId: delGroupId, deletedDate: groupDeletedDate } =
+        typeof action.payload === 'string'
+          ? { groupId: action.payload, deletedDate: null }
+          : action.payload;
+
+      const deletedGroup = state.groups.find((g) => g.id === delGroupId);
+
       // Cancel alarms for all tasks in the deleted group
-      const deletedGroup = state.groups.find((g) => g.id === action.payload);
       if (deletedGroup) {
         deletedGroup.tasks.forEach((t) => {
           if (t.alarm?.enabled) cancelTaskAlarm(t.id);
         });
       }
-      const groups = state.groups.filter((g) => g.id !== action.payload);
+
+      const isDailyGroup = deletedGroup?.recurrence?.type === 'daily';
+
+      if (isDailyGroup && groupDeletedDate) {
+        // Soft-delete: add a hidden range starting from the deleted date
+        const groups = state.groups.map((g) =>
+          g.id === delGroupId
+            ? { ...g, hiddenRanges: [...(g.hiddenRanges || []), { start: groupDeletedDate }] }
+            : g
+        );
+        return { ...state, groups };
+      }
+
+      // Hard-delete one-off groups
+      const groups = state.groups.filter((g) => g.id !== delGroupId);
       return { ...state, groups };
     }
 
@@ -93,6 +114,52 @@ function reducer(state, action) {
     }
 
     case 'ADD_TASK': {
+      const targetGroup = state.groups.find((g) => g.id === action.payload.groupId);
+      const newName = action.payload.name.trim().toLowerCase();
+
+      // Check for a soft-deleted task with the same name — revive it instead of duplicating
+      const isHidden = (t) =>
+        t.hiddenRanges?.length > 0 && !t.hiddenRanges[t.hiddenRanges.length - 1].end;
+      const existingTask = targetGroup?.tasks.find(
+        (t) => isHidden(t) && t.name.trim().toLowerCase() === newName
+      );
+
+      if (existingTask) {
+        const revivedDate = action.payload.createdDate || new Date().toISOString().split('T')[0];
+        const alarm = action.payload.alarm || existingTask.alarm || { enabled: false, hour: 8, minute: 0 };
+        if (alarm.enabled) {
+          scheduleTaskAlarm(existingTask.id, action.payload.name, alarm.hour, alarm.minute);
+        }
+        // Close the open-ended hidden range so the task is visible again from today
+        const closedRanges = (existingTask.hiddenRanges || []).map((r, i) =>
+          i === existingTask.hiddenRanges.length - 1 && !r.end
+            ? { ...r, end: revivedDate }
+            : r
+        );
+        const groups = state.groups.map((g) =>
+          g.id === action.payload.groupId
+            ? {
+                ...g,
+                tasks: g.tasks.map((t) =>
+                  t.id === existingTask.id
+                    ? {
+                        ...t,
+                        name: action.payload.name,
+                        description: action.payload.description || '',
+                        subtasks: action.payload.subtasks || t.subtasks,
+                        recurrence: action.payload.recurrence || t.recurrence,
+                        alarm,
+                        linkedWeeklyGoalId: action.payload.linkedWeeklyGoalId || null,
+                        hiddenRanges: closedRanges,
+                      }
+                    : t
+                ),
+              }
+            : g
+        );
+        return { ...state, groups };
+      }
+
       const taskId = uuid();
       const alarm = action.payload.alarm || { enabled: false, hour: 8, minute: 0 };
       const task = {
@@ -154,18 +221,122 @@ function reducer(state, action) {
     }
 
     case 'DELETE_TASK': {
+      const { groupId: delTaskGroupId, taskId: delTaskId, deletedDate: taskDeletedDate } = action.payload;
+
+      const delTaskGroup = state.groups.find((g) => g.id === delTaskGroupId);
+      const deletedTask = delTaskGroup?.tasks.find((t) => t.id === delTaskId);
+
       // Cancel alarm if the deleted task had one
-      const deletedTask = state.groups
-        .find((g) => g.id === action.payload.groupId)
-        ?.tasks.find((t) => t.id === action.payload.taskId);
       if (deletedTask?.alarm?.enabled) {
-        cancelTaskAlarm(action.payload.taskId);
+        cancelTaskAlarm(delTaskId);
       }
+
+      const isDailyTask = !deletedTask?.recurrence || deletedTask?.recurrence === 'daily';
+      const isDailyGroup = delTaskGroup?.recurrence?.type === 'daily';
+
+      if (isDailyTask && isDailyGroup && taskDeletedDate) {
+        // Soft-delete: add a hidden range starting from the deleted date
+        const groups = state.groups.map((g) =>
+          g.id === delTaskGroupId
+            ? {
+                ...g,
+                tasks: g.tasks.map((t) =>
+                  t.id === delTaskId
+                    ? { ...t, hiddenRanges: [...(t.hiddenRanges || []), { start: taskDeletedDate }] }
+                    : t
+                ),
+              }
+            : g
+        );
+        return { ...state, groups };
+      }
+
+      // Hard-delete one-off tasks
       const groups = state.groups.map((g) =>
-        g.id === action.payload.groupId
-          ? { ...g, tasks: g.tasks.filter((t) => t.id !== action.payload.taskId) }
+        g.id === delTaskGroupId
+          ? { ...g, tasks: g.tasks.filter((t) => t.id !== delTaskId) }
           : g
       );
+      return { ...state, groups };
+    }
+
+    case 'MOVE_TASK': {
+      const { groupId: srcGroupId, taskId: moveTaskId, targetDate, sourceDate } = action.payload;
+
+      const srcGroup = state.groups.find((g) => g.id === srcGroupId);
+      const task = srcGroup?.tasks.find((t) => t.id === moveTaskId);
+      if (!task || !srcGroup) return state;
+
+      // Cancel alarm on moved task
+      if (task.alarm?.enabled) cancelTaskAlarm(moveTaskId);
+
+      // Build moved task as a one-off on the target date
+      const movedTask = {
+        id: uuid(),
+        name: task.name,
+        description: task.description || '',
+        subtasks: (task.subtasks || []).map((st) => ({ id: `st-${Date.now()}-${Math.random()}`, name: st.name })),
+        createdDate: targetDate,
+        recurrence: 'once',
+        alarm: { enabled: false, hour: task.alarm?.hour ?? 8, minute: task.alarm?.minute ?? 0 },
+        linkedWeeklyGoalId: task.linkedWeeklyGoalId || null,
+      };
+
+      // Find a group with the same name that's visible on the target date
+      const isVisibleOnDate = (g, date) => {
+        if (g.hiddenRanges?.some((r) => date >= r.start && (!r.end || date < r.end))) return false;
+        if (g.recurrence?.type === 'daily') return true;
+        return g.createdDate === date;
+      };
+      const targetGroup = state.groups.find(
+        (g) => g.name === srcGroup.name && isVisibleOnDate(g, targetDate)
+      );
+
+      let groups = state.groups;
+
+      // Remove task from source: soft-delete for daily tasks, hard-delete for one-off
+      const isDailyTask = !task.recurrence || task.recurrence === 'daily';
+      const isDailyGroup = srcGroup.recurrence?.type === 'daily';
+      if (isDailyTask && isDailyGroup && sourceDate) {
+        groups = groups.map((g) =>
+          g.id === srcGroupId
+            ? {
+                ...g,
+                tasks: g.tasks.map((t) =>
+                  t.id === moveTaskId
+                    ? { ...t, hiddenRanges: [...(t.hiddenRanges || []), { start: sourceDate }] }
+                    : t
+                ),
+              }
+            : g
+        );
+      } else {
+        groups = groups.map((g) =>
+          g.id === srcGroupId
+            ? { ...g, tasks: g.tasks.filter((t) => t.id !== moveTaskId) }
+            : g
+        );
+      }
+
+      // Add to target group, or create a new one-off group
+      if (targetGroup) {
+        groups = groups.map((g) =>
+          g.id === targetGroup.id ? { ...g, tasks: [...g.tasks, movedTask] } : g
+        );
+      } else {
+        const newGroup = {
+          id: uuid(),
+          name: srcGroup.name,
+          description: srcGroup.description || '',
+          icon: srcGroup.icon || 'sun',
+          recurrence: { type: 'once' },
+          createdDate: targetDate,
+          tasks: [movedTask],
+          order: groups.length,
+        };
+        groups = [...groups, newGroup];
+      }
+
       return { ...state, groups };
     }
 
@@ -312,6 +483,28 @@ function reducer(state, action) {
       return { ...state, weeklyGoals };
     }
 
+    case 'PURGE_STALE_DELETED': {
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      const cutoff = oneYearAgo.toISOString().split('T')[0];
+
+      // Permanently remove tasks/groups that have been hidden (open-ended) for over a year
+      const isStaleHidden = (item) => {
+        const ranges = item.hiddenRanges;
+        if (!ranges?.length) return false;
+        const last = ranges[ranges.length - 1];
+        return !last.end && last.start < cutoff;
+      };
+
+      const groups = state.groups
+        .filter((g) => !isStaleHidden(g))
+        .map((g) => ({
+          ...g,
+          tasks: g.tasks.filter((t) => !isStaleHidden(t)),
+        }));
+      return { ...state, groups };
+    }
+
     default:
       return state;
   }
@@ -327,6 +520,8 @@ export function PlannerProvider({ children }) {
         dispatch({ type: 'LOAD_DATA', payload: saved });
       }
       isLoaded.current = true;
+      // Purge soft-deleted tasks/groups older than 1 year
+      dispatch({ type: 'PURGE_STALE_DELETED' });
     });
   }, []);
 
