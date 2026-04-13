@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useGroups, useCompletedTasks, useDispatch, useSettings } from '../context/PlannerContext';
+import { useGroups, useCompletedTasks, useWeeklyGoals, useDispatch, useSettings } from '../context/PlannerContext';
 import { getIconById } from '../utils/icons';
 import { shouldShowOnDate } from '../utils/recurrence';
 import { getEffectiveToday } from '../utils/dateHelpers';
@@ -13,6 +13,7 @@ import SubtaskEditForm from './SubtaskEditForm';
 import AddGroupChooser from './AddGroupChooser';
 import TemplateList from './TemplateList';
 import CompletedBanner from './CompletedBanner';
+import AddTaskChooser from './AddTaskChooser';
 import { useTheme } from '../utils/theme';
 
 // Icon center: group padding (14) + half icon width (22) = 36
@@ -22,6 +23,7 @@ export default function Timeline({ selectedDate }) {
   const colors = useTheme();
   const groups = useGroups();
   const completedTasks = useCompletedTasks();
+  const weeklyGoals = useWeeklyGoals();
   const dispatch = useDispatch();
   const settings = useSettings();
   const [groupFormOpen, setGroupFormOpen] = useState(false);
@@ -40,6 +42,7 @@ export default function Timeline({ selectedDate }) {
   const [templateListOpen, setTemplateListOpen] = useState(false);
   const [fromTemplate, setFromTemplate] = useState(null);
   const [unlockedGroups, setUnlockedGroups] = useState({});
+  const [taskChooserOpen, setTaskChooserOpen] = useState(false);
 
   const dateKey = useMemo(
     () => selectedDate.toISOString().split('T')[0],
@@ -52,6 +55,20 @@ export default function Timeline({ selectedDate }) {
     sel.setHours(0, 0, 0, 0);
     return sel < today;
   }, [selectedDate, settings?.timezone]);
+
+  const weekKey = useMemo(() => {
+    const d = new Date(selectedDate);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    const weekStart = new Date(d.setDate(diff));
+    return weekStart.toISOString().split('T')[0];
+  }, [selectedDate]);
+
+  const hasImportableGoalTasks = useMemo(() => {
+    return weeklyGoals
+      .filter((g) => g.weekKey === weekKey)
+      .some((g) => (g.tasks || []).some((t) => !t.linkedDailyTaskId));
+  }, [weeklyGoals, weekKey]);
 
   const isDateHidden = useCallback((hiddenRanges, date) => {
     if (!hiddenRanges?.length) return false;
@@ -72,8 +89,12 @@ export default function Timeline({ selectedDate }) {
     setActiveGroupName(groupName);
     setActiveGroupRecurrence(groupRecurrence);
     setEditTask(null);
-    setTaskFormOpen(true);
-  }, []);
+    if (hasImportableGoalTasks) {
+      setTaskChooserOpen(true);
+    } else {
+      setTaskFormOpen(true);
+    }
+  }, [hasImportableGoalTasks]);
 
   const openEditTask = useCallback((groupId, groupName, task, groupRecurrence) => {
     setActiveGroupId(groupId);
@@ -276,6 +297,23 @@ export default function Timeline({ selectedDate }) {
         <Text style={[styles.addGroupText, { color: colors.textSecondary }]}>+ Add Group</Text>
       </TouchableOpacity>
 
+      <AddTaskChooser
+        visible={taskChooserOpen}
+        onClose={() => setTaskChooserOpen(false)}
+        onCreateNew={() => setTaskFormOpen(true)}
+        onSelectGoalTask={(goalId, task) => {
+          dispatch({
+            type: 'ADD_LINKED_TASK',
+            payload: {
+              groupId: activeGroupId,
+              weeklyGoalId: goalId,
+              weeklyTaskId: task.id,
+              createdDate: dateKey,
+            },
+          });
+        }}
+        weekKey={weekKey}
+      />
       <AddGroupChooser
         visible={chooserOpen}
         onClose={() => setChooserOpen(false)}

@@ -230,18 +230,26 @@ export default function WeeklyGoals({ selectedDate }) {
                           {task.completed && <Text style={styles.taskCheckmark}>✓</Text>}
                         </View>
                         <View style={styles.taskInfo}>
-                          <Text
-                            style={[
-                              styles.taskName,
-                              {
-                                color: task.completed ? colors.textSecondary : colors.text,
-                                textDecorationLine: task.completed ? 'line-through' : 'none',
-                              },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {task.name}
-                          </Text>
+                          <View style={styles.taskNameRow}>
+                            <Text
+                              style={[
+                                styles.taskName,
+                                {
+                                  color: task.completed ? colors.textSecondary : colors.text,
+                                  textDecorationLine: task.completed ? 'line-through' : 'none',
+                                  flexShrink: 1,
+                                },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {task.name}
+                            </Text>
+                            {task.linkedDailyTaskId && (
+                              <View style={[styles.syncBadge, { backgroundColor: colors.primaryLight }]}>
+                                <Text style={[styles.syncBadgeText, { color: colors.primary }]}>🔗</Text>
+                              </View>
+                            )}
+                          </View>
                           {task.description && !isTaskExpanded ? (
                             <Text style={[styles.taskDesc, { color: colors.textMuted }]} numberOfLines={1}>
                               {task.description}
@@ -501,9 +509,22 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  taskNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   taskName: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  syncBadge: {
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  syncBadgeText: {
+    fontSize: 10,
   },
   taskDesc: {
     fontSize: 12,

@@ -212,12 +212,37 @@ function reducer(state, action) {
       if (!completed[dateKey]) completed[dateKey] = {};
       completed[dateKey] = { ...completed[dateKey] };
       completed[dateKey][subtaskId] = !completed[dateKey][subtaskId];
+      const newSubVal = completed[dateKey][subtaskId];
       // Auto-complete parent task when all subtasks are done
       if (taskId && allSubtaskIds) {
         const allDone = allSubtaskIds.every((id) => completed[dateKey][id]);
         completed[dateKey][taskId] = allDone;
       }
-      return { ...state, completedTasks: completed };
+      // Bidirectional sync: propagate to linked weekly goal subtask
+      let toggleSubGoals = state.weeklyGoals;
+      const subDaily = state.groups.flatMap((g) => g.tasks).find((t) => t.id === taskId);
+      if (subDaily?.linkedWeeklyTaskId && subDaily?.subtaskIdMap) {
+        const weeklyStId = Object.entries(subDaily.subtaskIdMap).find(
+          ([, dId]) => dId === subtaskId
+        )?.[0];
+        if (weeklyStId) {
+          toggleSubGoals = toggleSubGoals.map((g) => {
+            if (g.id !== subDaily.linkedWeeklyGoalId) return g;
+            return {
+              ...g,
+              tasks: (g.tasks || []).map((t) => {
+                if (t.id !== subDaily.linkedWeeklyTaskId) return t;
+                const subtasks = (t.subtasks || []).map((st) =>
+                  st.id === weeklyStId ? { ...st, completed: newSubVal } : st
+                );
+                const allStDone = subtasks.length > 0 && subtasks.every((st) => st.completed);
+                return { ...t, subtasks, completed: allStDone };
+              }),
+            };
+          });
+        }
+      }
+      return { ...state, completedTasks: completed, weeklyGoals: toggleSubGoals };
     }
 
     case 'DELETE_TASK': {
@@ -257,7 +282,25 @@ function reducer(state, action) {
           ? { ...g, tasks: g.tasks.filter((t) => t.id !== delTaskId) }
           : g
       );
-      return { ...state, groups };
+
+      // Clean up weekly goal task link if this was a linked task
+      let delTaskGoals = state.weeklyGoals;
+      if (deletedTask?.linkedWeeklyTaskId) {
+        delTaskGoals = delTaskGoals.map((g) =>
+          g.id === deletedTask.linkedWeeklyGoalId
+            ? {
+                ...g,
+                tasks: (g.tasks || []).map((t) =>
+                  t.id === deletedTask.linkedWeeklyTaskId
+                    ? { ...t, linkedDailyGroupId: undefined, linkedDailyTaskId: undefined, linkedDateKey: undefined }
+                    : t
+                ),
+              }
+            : g
+        );
+      }
+
+      return { ...state, groups, weeklyGoals: delTaskGoals };
     }
 
     case 'MOVE_TASK': {
@@ -353,7 +396,30 @@ function reducer(state, action) {
           completed[dateKey][id] = true;
         });
       }
-      return { ...state, completedTasks: completed };
+      // Bidirectional sync: propagate to linked weekly goal task
+      let toggleTaskGoals = state.weeklyGoals;
+      const toggledDaily = state.groups.flatMap((g) => g.tasks).find((t) => t.id === taskId);
+      if (toggledDaily?.linkedWeeklyTaskId) {
+        toggleTaskGoals = toggleTaskGoals.map((g) =>
+          g.id === toggledDaily.linkedWeeklyGoalId
+            ? {
+                ...g,
+                tasks: (g.tasks || []).map((t) =>
+                  t.id === toggledDaily.linkedWeeklyTaskId
+                    ? {
+                        ...t,
+                        completed: newVal,
+                        subtasks: newVal
+                          ? (t.subtasks || []).map((st) => ({ ...st, completed: true }))
+                          : t.subtasks,
+                      }
+                    : t
+                ),
+              }
+            : g
+        );
+      }
+      return { ...state, completedTasks: completed, weeklyGoals: toggleTaskGoals };
     }
 
     case 'ADD_WEEKLY_GOAL': {
@@ -383,8 +449,28 @@ function reducer(state, action) {
     }
 
     case 'DELETE_WEEKLY_GOAL': {
-      const weeklyGoals = state.weeklyGoals.filter((g) => g.id !== action.payload);
-      return { ...state, weeklyGoals };
+      const delWgGoal = state.weeklyGoals.find((g) => g.id === action.payload);
+      const delWgGoals = state.weeklyGoals.filter((g) => g.id !== action.payload);
+
+      // Clean up all daily task links for tasks in this goal
+      let delWgGroups = state.groups;
+      if (delWgGoal) {
+        const linkedIds = new Set(
+          (delWgGoal.tasks || []).filter((t) => t.linkedDailyTaskId).map((t) => t.linkedDailyTaskId)
+        );
+        if (linkedIds.size > 0) {
+          delWgGroups = delWgGroups.map((g) => ({
+            ...g,
+            tasks: g.tasks.map((t) =>
+              linkedIds.has(t.id)
+                ? { ...t, linkedWeeklyGoalId: null, linkedWeeklyTaskId: undefined, subtaskIdMap: undefined }
+                : t
+            ),
+          }));
+        }
+      }
+
+      return { ...state, weeklyGoals: delWgGoals, groups: delWgGroups };
     }
 
     case 'ADD_GOAL_TASK': {
@@ -416,26 +502,78 @@ function reducer(state, action) {
     }
 
     case 'DELETE_GOAL_TASK': {
-      const weeklyGoals = state.weeklyGoals.map((g) =>
+      const delGtGoal = state.weeklyGoals.find((g) => g.id === action.payload.goalId);
+      const delGtTask = delGtGoal?.tasks?.find((t) => t.id === action.payload.taskId);
+
+      const delGtGoals = state.weeklyGoals.map((g) =>
         g.id === action.payload.goalId
           ? { ...g, tasks: (g.tasks || []).filter((t) => t.id !== action.payload.taskId) }
           : g
       );
-      return { ...state, weeklyGoals };
+
+      // Clean up daily task link
+      let delGtGroups = state.groups;
+      if (delGtTask?.linkedDailyTaskId) {
+        delGtGroups = delGtGroups.map((g) =>
+          g.id === delGtTask.linkedDailyGroupId
+            ? {
+                ...g,
+                tasks: g.tasks.map((t) =>
+                  t.id === delGtTask.linkedDailyTaskId
+                    ? { ...t, linkedWeeklyGoalId: null, linkedWeeklyTaskId: undefined, subtaskIdMap: undefined }
+                    : t
+                ),
+              }
+            : g
+        );
+      }
+
+      return { ...state, weeklyGoals: delGtGoals, groups: delGtGroups };
     }
 
     case 'TOGGLE_GOAL_TASK': {
-      const weeklyGoals = state.weeklyGoals.map((g) =>
-        g.id === action.payload.goalId
+      const { goalId: tgtGoalId, taskId: tgtTaskId } = action.payload;
+      const tgtGoal = state.weeklyGoals.find((g) => g.id === tgtGoalId);
+      const tgtGoalTask = tgtGoal?.tasks?.find((t) => t.id === tgtTaskId);
+      if (!tgtGoalTask) return state;
+      const tgtNewVal = !tgtGoalTask.completed;
+
+      const tgtWeeklyGoals = state.weeklyGoals.map((g) =>
+        g.id === tgtGoalId
           ? {
               ...g,
-              tasks: (g.tasks || []).map((t) =>
-                t.id === action.payload.taskId ? { ...t, completed: !t.completed } : t
-              ),
+              tasks: (g.tasks || []).map((t) => {
+                if (t.id !== tgtTaskId) return t;
+                const updated = { ...t, completed: tgtNewVal };
+                // For linked tasks, auto-complete subtasks when checking
+                if (tgtNewVal && t.linkedDailyTaskId) {
+                  updated.subtasks = (t.subtasks || []).map((st) => ({ ...st, completed: true }));
+                }
+                return updated;
+              }),
             }
           : g
       );
-      return { ...state, weeklyGoals };
+
+      // Bidirectional sync: propagate to linked daily task
+      let tgtCompleted = state.completedTasks;
+      if (tgtGoalTask.linkedDailyTaskId && tgtGoalTask.linkedDateKey) {
+        const dk = tgtGoalTask.linkedDateKey;
+        tgtCompleted = { ...tgtCompleted };
+        if (!tgtCompleted[dk]) tgtCompleted[dk] = {};
+        tgtCompleted[dk] = { ...tgtCompleted[dk] };
+        tgtCompleted[dk][tgtGoalTask.linkedDailyTaskId] = tgtNewVal;
+        if (tgtNewVal) {
+          const tgtDailyTask = state.groups.flatMap((g) => g.tasks).find((t) => t.id === tgtGoalTask.linkedDailyTaskId);
+          if (tgtDailyTask) {
+            (tgtDailyTask.subtasks || []).forEach((st) => {
+              tgtCompleted[dk][st.id] = true;
+            });
+          }
+        }
+      }
+
+      return { ...state, weeklyGoals: tgtWeeklyGoals, completedTasks: tgtCompleted };
     }
 
     case 'UPDATE_SETTINGS': {
@@ -466,21 +604,115 @@ function reducer(state, action) {
       return { ...state, templates };
     }
 
+    case 'ADD_LINKED_TASK': {
+      const { groupId, weeklyGoalId, weeklyTaskId, createdDate } = action.payload;
+      const goal = state.weeklyGoals.find((g) => g.id === weeklyGoalId);
+      const goalTask = goal?.tasks?.find((t) => t.id === weeklyTaskId);
+      if (!goalTask) return state;
+
+      const dailyTaskId = uuid();
+      const subtaskIdMap = {};
+      const dailySubtasks = (goalTask.subtasks || []).map((st) => {
+        const newId = `st-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        subtaskIdMap[st.id] = newId;
+        return { id: newId, name: st.name };
+      });
+
+      const newTask = {
+        id: dailyTaskId,
+        name: goalTask.name,
+        description: goalTask.description || '',
+        subtasks: dailySubtasks,
+        createdDate,
+        recurrence: 'once',
+        alarm: { enabled: false, hour: 8, minute: 0 },
+        linkedWeeklyGoalId: weeklyGoalId,
+        linkedWeeklyTaskId: weeklyTaskId,
+        subtaskIdMap,
+      };
+
+      const addLinkedGroups = state.groups.map((g) =>
+        g.id === groupId ? { ...g, tasks: [...g.tasks, newTask] } : g
+      );
+
+      const addLinkedGoals = state.weeklyGoals.map((g) =>
+        g.id === weeklyGoalId
+          ? {
+              ...g,
+              tasks: (g.tasks || []).map((t) =>
+                t.id === weeklyTaskId
+                  ? { ...t, linkedDailyGroupId: groupId, linkedDailyTaskId: dailyTaskId, linkedDateKey: createdDate }
+                  : t
+              ),
+            }
+          : g
+      );
+
+      // Sync existing completion state from weekly goal task
+      let addLinkedCompleted = state.completedTasks;
+      if (goalTask.completed) {
+        addLinkedCompleted = { ...addLinkedCompleted };
+        if (!addLinkedCompleted[createdDate]) addLinkedCompleted[createdDate] = {};
+        addLinkedCompleted[createdDate] = { ...addLinkedCompleted[createdDate] };
+        addLinkedCompleted[createdDate][dailyTaskId] = true;
+        dailySubtasks.forEach((st) => {
+          addLinkedCompleted[createdDate][st.id] = true;
+        });
+      } else if ((goalTask.subtasks || []).some((st) => st.completed)) {
+        addLinkedCompleted = { ...addLinkedCompleted };
+        if (!addLinkedCompleted[createdDate]) addLinkedCompleted[createdDate] = {};
+        addLinkedCompleted[createdDate] = { ...addLinkedCompleted[createdDate] };
+        (goalTask.subtasks || []).forEach((st) => {
+          if (st.completed && subtaskIdMap[st.id]) {
+            addLinkedCompleted[createdDate][subtaskIdMap[st.id]] = true;
+          }
+        });
+      }
+
+      return { ...state, groups: addLinkedGroups, weeklyGoals: addLinkedGoals, completedTasks: addLinkedCompleted };
+    }
+
     case 'TOGGLE_GOAL_SUBTASK': {
       const { goalId, taskId, subtaskId } = action.payload;
-      const weeklyGoals = state.weeklyGoals.map((g) => {
+      const gsGoal = state.weeklyGoals.find((g) => g.id === goalId);
+      const gsTask = gsGoal?.tasks?.find((t) => t.id === taskId);
+      const gsSub = gsTask?.subtasks?.find((st) => st.id === subtaskId);
+      const gsNewSubVal = gsSub ? !gsSub.completed : false;
+
+      const gsWeeklyGoals = state.weeklyGoals.map((g) => {
         if (g.id !== goalId) return g;
         const tasks = (g.tasks || []).map((t) => {
           if (t.id !== taskId) return t;
           const subtasks = (t.subtasks || []).map((st) =>
-            st.id === subtaskId ? { ...st, completed: !st.completed } : st
+            st.id === subtaskId ? { ...st, completed: gsNewSubVal } : st
           );
           const allDone = subtasks.length > 0 && subtasks.every((st) => st.completed);
           return { ...t, subtasks, completed: allDone };
         });
         return { ...g, tasks };
       });
-      return { ...state, weeklyGoals };
+
+      // Bidirectional sync: propagate to linked daily subtask
+      let gsCompleted = state.completedTasks;
+      if (gsTask?.linkedDailyTaskId && gsTask?.linkedDateKey) {
+        const gsDailyTask = state.groups.flatMap((g) => g.tasks).find((t) => t.id === gsTask.linkedDailyTaskId);
+        if (gsDailyTask?.subtaskIdMap) {
+          const dailyStId = gsDailyTask.subtaskIdMap[subtaskId];
+          if (dailyStId) {
+            const dk = gsTask.linkedDateKey;
+            gsCompleted = { ...gsCompleted };
+            if (!gsCompleted[dk]) gsCompleted[dk] = {};
+            gsCompleted[dk] = { ...gsCompleted[dk] };
+            gsCompleted[dk][dailyStId] = gsNewSubVal;
+            // Auto-complete daily parent if all subtasks done
+            const allDailyStIds = (gsDailyTask.subtasks || []).map((st) => st.id);
+            const allDone = allDailyStIds.every((id) => gsCompleted[dk][id]);
+            gsCompleted[dk][gsDailyTask.id] = allDone;
+          }
+        }
+      }
+
+      return { ...state, weeklyGoals: gsWeeklyGoals, completedTasks: gsCompleted };
     }
 
     case 'PURGE_STALE_DELETED': {
