@@ -31,12 +31,12 @@ function reducer(state, action) {
 
     case 'ADD_GROUP': {
       const createdDate = action.payload.createdDate || new Date().toISOString().split('T')[0];
-      const templateTasks = (action.payload.templateTasks || []).map((t) => ({
+      const templateTasks = (action.payload.templateTasks || []).map((t, tIdx) => ({
         id: uuid(),
         name: t.name,
         description: t.description || '',
         subtasks: (t.subtasks || []).map((st, i) => ({
-          id: `st-${Date.now()}-${i}`,
+          id: `st-${Date.now()}-${tIdx}-${i}`,
           name: st.name,
         })),
         createdDate,
