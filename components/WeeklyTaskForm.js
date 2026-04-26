@@ -2,15 +2,32 @@ import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import BottomSheet from './BottomSheet';
 import DraggableSubtaskList from './DraggableSubtaskList';
+import WeekPickerModal from './WeekPickerModal';
 import { useDispatch } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
 
-export default function WeeklyTaskForm({ visible, onClose, goalId, goalName, editTask }) {
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function formatWeekRange(weekKey) {
+  if (!weekKey) return '';
+  const start = new Date(`${weekKey}T00:00:00`);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const sMonth = SHORT_MONTHS[start.getMonth()];
+  const eMonth = SHORT_MONTHS[end.getMonth()];
+  if (start.getMonth() === end.getMonth()) {
+    return `Week of ${sMonth} ${start.getDate()}-${end.getDate()}, ${start.getFullYear()}`;
+  }
+  return `Week of ${sMonth} ${start.getDate()} - ${eMonth} ${end.getDate()}, ${end.getFullYear()}`;
+}
+
+export default function WeeklyTaskForm({ visible, onClose, goalId, goalName, editTask, weekKey }) {
   const colors = useTheme();
   const dispatch = useDispatch();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [subtasks, setSubtasks] = useState([]);
+  const [weekPickerOpen, setWeekPickerOpen] = useState(false);
 
   useEffect(() => {
     if (editTask) {
@@ -44,6 +61,15 @@ export default function WeeklyTaskForm({ visible, onClose, goalId, goalName, edi
     onClose();
   };
 
+  const handleMoveToWeek = (targetWeekKey) => {
+    if (!editTask || !targetWeekKey || targetWeekKey === weekKey) return;
+    dispatch({
+      type: 'MOVE_GOAL_TASK',
+      payload: { goalId, taskId: editTask.id, targetWeekKey },
+    });
+    onClose();
+  };
+
   const handleDelete = () => {
     if (editTask) {
       dispatch({ type: 'DELETE_GOAL_TASK', payload: { goalId, taskId: editTask.id } });
@@ -54,12 +80,32 @@ export default function WeeklyTaskForm({ visible, onClose, goalId, goalName, edi
   return (
     <BottomSheet visible={visible} onClose={onClose} title={editTask ? 'Edit Task' : 'New Task'}>
       <View style={styles.form}>
-        {goalName && (
+        {(goalName || weekKey) && (
           <View style={[styles.context, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.contextLabel, { color: colors.textMuted }]}>Goal</Text>
-            <Text style={[styles.contextValue, { color: colors.text }]} numberOfLines={1}>
-              {goalName}
-            </Text>
+            {goalName && (
+              <View style={styles.contextRow}>
+                <Text style={[styles.contextLabel, { color: colors.textMuted }]}>Goal</Text>
+                <Text style={[styles.contextValue, { color: colors.text }]} numberOfLines={1}>
+                  {goalName}
+                </Text>
+              </View>
+            )}
+            {weekKey && (
+              <TouchableOpacity
+                style={styles.contextRow}
+                onPress={editTask ? () => setWeekPickerOpen(true) : undefined}
+                disabled={!editTask}
+                activeOpacity={editTask ? 0.6 : 1}
+              >
+                <Text style={[styles.contextLabel, { color: colors.textMuted }]}>Week</Text>
+                <Text style={[styles.contextValue, { color: editTask ? colors.primary : colors.text }]} numberOfLines={1}>
+                  {formatWeekRange(weekKey)}
+                </Text>
+                {editTask && (
+                  <Text style={[styles.moveHint, { color: colors.textMuted }]}>Tap to move</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -127,6 +173,14 @@ export default function WeeklyTaskForm({ visible, onClose, goalId, goalName, edi
           </TouchableOpacity>
         </View>
       </View>
+      {editTask && weekKey && (
+        <WeekPickerModal
+          visible={weekPickerOpen}
+          onClose={() => setWeekPickerOpen(false)}
+          currentWeekKey={weekKey}
+          onSelect={handleMoveToWeek}
+        />
+      )}
     </BottomSheet>
   );
 }
@@ -137,22 +191,30 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   context: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    gap: 8,
+    gap: 6,
     marginBottom: 4,
+  },
+  contextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   contextLabel: {
     fontSize: 12,
     fontWeight: '600',
+    width: 44,
   },
   contextValue: {
     fontSize: 14,
     fontWeight: '500',
-    flex: 1,
+    flexShrink: 1,
+  },
+  moveHint: {
+    fontSize: 11,
+    marginLeft: 'auto',
   },
   label: {
     fontSize: 13,
