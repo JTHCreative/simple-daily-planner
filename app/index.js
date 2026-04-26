@@ -141,15 +141,7 @@ export default function HomeScreen() {
 
       {view === 'goals' ? (
         <SwipeableDay selectedDate={selectedDate} onDateChange={setSelectedDate} step={7}>
-          {(date) => (
-            <ScrollView
-              style={styles.scroll}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              <WeeklyGoals selectedDate={date} />
-            </ScrollView>
-          )}
+          {(date) => <WeeklyGoals selectedDate={date} />}
         </SwipeableDay>
       ) : (
         <SwipeableDay selectedDate={selectedDate} onDateChange={setSelectedDate}>

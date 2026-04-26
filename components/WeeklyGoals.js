@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Pressable, Keyboard, StyleSheet } from 'react-native';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, Pressable, ScrollView, Keyboard, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useWeeklyGoals, useGroups, useDispatch, useSettings } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
@@ -27,10 +27,16 @@ export default function WeeklyGoals({ selectedDate }) {
   const [expandedTasks, setExpandedTasks] = useState({});
   const [unlockedGoals, setUnlockedGoals] = useState({});
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
       setKeyboardHeight(e.endCoordinates?.height || 0);
+      // Defer to next frame so the new bottom padding is laid out first,
+      // then scroll the input into view above the keyboard.
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      });
     });
     const hideSub = Keyboard.addListener('keyboardDidHide', () => {
       setKeyboardHeight(0);
@@ -144,7 +150,13 @@ export default function WeeklyGoals({ selectedDate }) {
   }, []);
 
   return (
-    <View style={[styles.container, { paddingBottom: 100 + keyboardHeight }]}>
+    <ScrollView
+      ref={scrollRef}
+      style={styles.scroll}
+      contentContainerStyle={[styles.container, { paddingBottom: 100 + keyboardHeight }]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Weekly Goals</Text>
         <View style={[styles.progressBadge, { backgroundColor: colors.primaryLight }]}>
@@ -482,11 +494,14 @@ export default function WeeklyGoals({ selectedDate }) {
         mode="goal"
         goalId={taskArrangeGoalId}
       />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   container: {
     paddingHorizontal: 16,
     paddingTop: 14,
