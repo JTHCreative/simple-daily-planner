@@ -531,6 +531,75 @@ function reducer(state, action) {
       return { ...state, weeklyGoals: delGtGoals, groups: delGtGroups };
     }
 
+    case 'MOVE_GOAL_TASK': {
+      const { goalId: moveSrcGoalId, taskId: moveTaskId, targetWeekKey } = action.payload;
+
+      const moveSrcGoal = state.weeklyGoals.find((g) => g.id === moveSrcGoalId);
+      const moveTask = moveSrcGoal?.tasks?.find((t) => t.id === moveTaskId);
+      if (!moveTask || !moveSrcGoal) return state;
+      if (moveSrcGoal.weekKey === targetWeekKey) return state;
+
+      const movedTask = {
+        id: uuid(),
+        name: moveTask.name,
+        description: moveTask.description || '',
+        subtasks: (moveTask.subtasks || []).map((st, i) => ({
+          id: `gst-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+          name: st.name,
+          completed: !!st.completed,
+        })),
+        completed: !!moveTask.completed,
+      };
+
+      // Find an existing goal in the target week with the same text (mirrors MOVE_TASK group logic)
+      const moveTargetGoal = state.weeklyGoals.find(
+        (g) => g.weekKey === targetWeekKey && g.text === moveSrcGoal.text
+      );
+
+      let moveWeeklyGoals = state.weeklyGoals.map((g) =>
+        g.id === moveSrcGoalId
+          ? { ...g, tasks: (g.tasks || []).filter((t) => t.id !== moveTaskId) }
+          : g
+      );
+
+      // Clean up linked daily task — the link no longer matches the new week
+      let moveGroups = state.groups;
+      if (moveTask.linkedDailyTaskId) {
+        moveGroups = moveGroups.map((g) =>
+          g.id === moveTask.linkedDailyGroupId
+            ? {
+                ...g,
+                tasks: g.tasks.map((t) =>
+                  t.id === moveTask.linkedDailyTaskId
+                    ? { ...t, linkedWeeklyGoalId: null, linkedWeeklyTaskId: undefined, subtaskIdMap: undefined }
+                    : t
+                ),
+              }
+            : g
+        );
+      }
+
+      if (moveTargetGoal) {
+        moveWeeklyGoals = moveWeeklyGoals.map((g) =>
+          g.id === moveTargetGoal.id
+            ? { ...g, tasks: [...(g.tasks || []), movedTask] }
+            : g
+        );
+      } else {
+        const newGoal = {
+          id: uuid(),
+          text: moveSrcGoal.text,
+          icon: moveSrcGoal.icon || '🎯',
+          weekKey: targetWeekKey,
+          tasks: [movedTask],
+          completed: false,
+        };
+        moveWeeklyGoals = [...moveWeeklyGoals, newGoal];
+      }
+
+      return { ...state, weeklyGoals: moveWeeklyGoals, groups: moveGroups };
+    }
+
     case 'TOGGLE_GOAL_TASK': {
       const { goalId: tgtGoalId, taskId: tgtTaskId } = action.payload;
       const tgtGoal = state.weeklyGoals.find((g) => g.id === tgtGoalId);

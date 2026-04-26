@@ -1,7 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet } from 'react-native';
-import { useWeeklyGoals, useGroups, useDispatch } from '../context/PlannerContext';
+import Svg, { Path } from 'react-native-svg';
+import { useWeeklyGoals, useGroups, useDispatch, useSettings } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
+import { getEffectiveToday } from '../utils/dateHelpers';
 import WeeklyGoalForm from './WeeklyGoalForm';
 import WeeklyTaskForm from './WeeklyTaskForm';
 import TaskArrange from './TaskArrange';
@@ -20,8 +22,10 @@ export default function WeeklyGoals({ selectedDate }) {
   const weeklyGoals = useWeeklyGoals();
   const groups = useGroups();
   const dispatch = useDispatch();
+  const settings = useSettings();
   const [expandedGoals, setExpandedGoals] = useState({});
   const [expandedTasks, setExpandedTasks] = useState({});
+  const [unlockedGoals, setUnlockedGoals] = useState({});
 
   // Goal form state
   const [goalFormVisible, setGoalFormVisible] = useState(false);
@@ -42,6 +46,12 @@ export default function WeeklyGoals({ selectedDate }) {
   const [newGoal, setNewGoal] = useState('');
 
   const weekKey = useMemo(() => getWeekKey(selectedDate), [selectedDate]);
+
+  const isPastWeek = useMemo(() => {
+    const today = getEffectiveToday(settings?.timezone);
+    const currentWeekKey = getWeekKey(today);
+    return weekKey < currentWeekKey;
+  }, [weekKey, settings?.timezone]);
 
   const goals = useMemo(
     () => weeklyGoals.filter((g) => g.weekKey === weekKey),
@@ -137,6 +147,8 @@ export default function WeeklyGoals({ selectedDate }) {
         const tasksDone = tasks.filter((t) => t.completed).length;
         const allTasksDone = hasTasks && tasksDone === tasks.length;
         const goalIcon = goal.icon || '🎯';
+        const isUnlocked = !!unlockedGoals[goal.id];
+        const isLocked = isPastWeek && !isUnlocked;
 
         return (
           <View
@@ -183,6 +195,27 @@ export default function WeeklyGoals({ selectedDate }) {
                   </View>
                 )}
               </View>
+              {isPastWeek && (
+                <TouchableOpacity
+                  style={[
+                    styles.unlockBtn,
+                    {
+                      backgroundColor: isUnlocked ? colors.primary : colors.surface,
+                      borderColor: isUnlocked ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() =>
+                    setUnlockedGoals((prev) => ({ ...prev, [goal.id]: !prev[goal.id] }))
+                  }
+                >
+                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                      fill={isUnlocked ? '#fff' : colors.textMuted}
+                    />
+                  </Svg>
+                </TouchableOpacity>
+              )}
               <View
                 style={[
                   styles.chevron,
@@ -200,6 +233,7 @@ export default function WeeklyGoals({ selectedDate }) {
                   const hasSubtasks = subtasks.length > 0;
                   const isTaskExpanded = expandedTasks[task.id];
                   const stDone = subtasks.filter((st) => st.completed).length;
+                  const isMissed = isLocked && !task.completed;
 
                   return (
                     <View key={task.id}>
@@ -209,12 +243,13 @@ export default function WeeklyGoals({ selectedDate }) {
                           styles.taskRow,
                           { opacity: pressed ? 0.7 : 1 },
                         ]}
-                        onPress={() =>
+                        onPress={() => {
+                          if (isLocked) return;
                           dispatch({
                             type: 'TOGGLE_GOAL_TASK',
                             payload: { goalId: goal.id, taskId: task.id },
-                          })
-                        }
+                          });
+                        }}
                         onLongPress={() => openEditTask(goal, task)}
                         delayLongPress={400}
                       >
@@ -222,12 +257,19 @@ export default function WeeklyGoals({ selectedDate }) {
                           style={[
                             styles.taskCheck,
                             {
-                              borderColor: task.completed ? colors.primary : colors.border,
+                              borderColor: isMissed
+                                ? colors.textMuted
+                                : task.completed
+                                  ? colors.primary
+                                  : colors.border,
                               backgroundColor: task.completed ? colors.primary : 'transparent',
                             },
                           ]}
                         >
                           {task.completed && <Text style={styles.taskCheckmark}>✓</Text>}
+                          {isMissed && (
+                            <Text style={[styles.taskMissedMark, { color: colors.textMuted }]}>✕</Text>
+                          )}
                         </View>
                         <View style={styles.taskInfo}>
                           <View style={styles.taskNameRow}>
@@ -235,7 +277,11 @@ export default function WeeklyGoals({ selectedDate }) {
                               style={[
                                 styles.taskName,
                                 {
-                                  color: task.completed ? colors.textSecondary : colors.text,
+                                  color: isMissed
+                                    ? colors.textMuted
+                                    : task.completed
+                                      ? colors.textSecondary
+                                      : colors.text,
                                   textDecorationLine: task.completed ? 'line-through' : 'none',
                                   flexShrink: 1,
                                 },
@@ -281,45 +327,60 @@ export default function WeeklyGoals({ selectedDate }) {
                       {/* Expanded Subtasks */}
                       {hasSubtasks && isTaskExpanded && (
                         <View style={styles.subtaskList}>
-                          {subtasks.map((st) => (
-                            <Pressable
-                              key={st.id}
-                              onPress={() =>
-                                dispatch({
-                                  type: 'TOGGLE_GOAL_SUBTASK',
-                                  payload: { goalId: goal.id, taskId: task.id, subtaskId: st.id },
-                                })
-                              }
-                              style={({ pressed }) => [
-                                styles.subtaskRow,
-                                { opacity: pressed ? 0.7 : 1 },
-                              ]}
-                            >
-                              <View
-                                style={[
-                                  styles.subtaskCheck,
-                                  {
-                                    borderColor: st.completed ? colors.primary : colors.border,
-                                    backgroundColor: st.completed ? colors.primary : 'transparent',
-                                  },
+                          {subtasks.map((st) => {
+                            const stMissed = isLocked && !st.completed;
+                            return (
+                              <Pressable
+                                key={st.id}
+                                onPress={() => {
+                                  if (isLocked) return;
+                                  dispatch({
+                                    type: 'TOGGLE_GOAL_SUBTASK',
+                                    payload: { goalId: goal.id, taskId: task.id, subtaskId: st.id },
+                                  });
+                                }}
+                                style={({ pressed }) => [
+                                  styles.subtaskRow,
+                                  { opacity: pressed ? 0.7 : 1 },
                                 ]}
                               >
-                                {st.completed && <Text style={styles.subtaskCheckmark}>✓</Text>}
-                              </View>
-                              <Text
-                                style={[
-                                  styles.subtaskName,
-                                  {
-                                    color: st.completed ? colors.textSecondary : colors.text,
-                                    textDecorationLine: st.completed ? 'line-through' : 'none',
-                                  },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {st.name}
-                              </Text>
-                            </Pressable>
-                          ))}
+                                <View
+                                  style={[
+                                    styles.subtaskCheck,
+                                    {
+                                      borderColor: stMissed
+                                        ? colors.textMuted
+                                        : st.completed
+                                          ? colors.primary
+                                          : colors.border,
+                                      backgroundColor: st.completed ? colors.primary : 'transparent',
+                                    },
+                                  ]}
+                                >
+                                  {st.completed && <Text style={styles.subtaskCheckmark}>✓</Text>}
+                                  {stMissed && (
+                                    <Text style={[styles.subtaskMissedMark, { color: colors.textMuted }]}>✕</Text>
+                                  )}
+                                </View>
+                                <Text
+                                  style={[
+                                    styles.subtaskName,
+                                    {
+                                      color: stMissed
+                                        ? colors.textMuted
+                                        : st.completed
+                                          ? colors.textSecondary
+                                          : colors.text,
+                                      textDecorationLine: st.completed ? 'line-through' : 'none',
+                                    },
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {st.name}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
                         </View>
                       )}
                     </View>
@@ -327,27 +388,29 @@ export default function WeeklyGoals({ selectedDate }) {
                 })}
 
                 {/* Add Task / Arrange buttons at bottom of expanded section */}
-                <View style={[styles.taskActions, { borderTopColor: hasTasks ? colors.border : 'transparent' }]}>
-                  <TouchableOpacity
-                    style={styles.addTaskRow}
-                    onPress={() => openAddTask(goal)}
-                    activeOpacity={0.6}
-                  >
-                    <View style={[styles.addTaskIcon, { backgroundColor: colors.primaryLight }]}>
-                      <Text style={[styles.addTaskIconText, { color: colors.primary }]}>+</Text>
-                    </View>
-                    <Text style={[styles.addTaskLabel, { color: colors.primary }]}>Add Task</Text>
-                  </TouchableOpacity>
-                  {tasks.length >= 2 && (
+                {!isLocked && (
+                  <View style={[styles.taskActions, { borderTopColor: hasTasks ? colors.border : 'transparent' }]}>
                     <TouchableOpacity
-                      style={styles.arrangeTaskRow}
-                      onPress={() => openTaskArrange(goal)}
+                      style={styles.addTaskRow}
+                      onPress={() => openAddTask(goal)}
                       activeOpacity={0.6}
                     >
-                      <Text style={[styles.arrangeTaskLabel, { color: colors.textMuted }]}>↕ Reorder</Text>
+                      <View style={[styles.addTaskIcon, { backgroundColor: colors.primaryLight }]}>
+                        <Text style={[styles.addTaskIconText, { color: colors.primary }]}>+</Text>
+                      </View>
+                      <Text style={[styles.addTaskLabel, { color: colors.primary }]}>Add Task</Text>
                     </TouchableOpacity>
-                  )}
-                </View>
+                    {tasks.length >= 2 && (
+                      <TouchableOpacity
+                        style={styles.arrangeTaskRow}
+                        onPress={() => openTaskArrange(goal)}
+                        activeOpacity={0.6}
+                      >
+                        <Text style={[styles.arrangeTaskLabel, { color: colors.textMuted }]}>↕ Reorder</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -393,6 +456,7 @@ export default function WeeklyGoals({ selectedDate }) {
         goalId={taskFormGoalId}
         goalName={taskFormGoalName}
         editTask={editTask}
+        weekKey={weekKey}
       />
 
       {/* Task Arrange */}
@@ -480,6 +544,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  unlockBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   // Task list
   taskList: {
     borderTopWidth: 1,
@@ -503,6 +575,10 @@ const styles = StyleSheet.create({
   taskCheckmark: {
     color: '#fff',
     fontSize: 12,
+    fontWeight: '700',
+  },
+  taskMissedMark: {
+    fontSize: 10,
     fontWeight: '700',
   },
   taskInfo: {
@@ -563,6 +639,10 @@ const styles = StyleSheet.create({
   subtaskCheckmark: {
     color: '#fff',
     fontSize: 10,
+    fontWeight: '700',
+  },
+  subtaskMissedMark: {
+    fontSize: 8,
     fontWeight: '700',
   },
   subtaskName: {
