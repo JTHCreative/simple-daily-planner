@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 import DateHeader from '../components/DateHeader';
@@ -140,23 +140,17 @@ export default function HomeScreen() {
       <DateHeader selectedDate={selectedDate} onDateChange={setSelectedDate} mode={view === 'goals' ? 'weekly' : 'daily'} />
 
       {view === 'goals' ? (
-        <KeyboardAvoidingView
-          style={styles.scroll}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-        >
-          <SwipeableDay selectedDate={selectedDate} onDateChange={setSelectedDate} step={7}>
-            {(date) => (
-              <ScrollView
-                style={styles.scroll}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-              >
-                <WeeklyGoals selectedDate={date} />
-              </ScrollView>
-            )}
-          </SwipeableDay>
-        </KeyboardAvoidingView>
+        <SwipeableDay selectedDate={selectedDate} onDateChange={setSelectedDate} step={7}>
+          {(date) => (
+            <ScrollView
+              style={styles.scroll}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <WeeklyGoals selectedDate={date} />
+            </ScrollView>
+          )}
+        </SwipeableDay>
       ) : (
         <SwipeableDay selectedDate={selectedDate} onDateChange={setSelectedDate}>
           {(date) => (

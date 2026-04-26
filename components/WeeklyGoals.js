@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet } from 'react-native';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, Pressable, Keyboard, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useWeeklyGoals, useGroups, useDispatch, useSettings } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
@@ -26,6 +26,20 @@ export default function WeeklyGoals({ selectedDate }) {
   const [expandedGoals, setExpandedGoals] = useState({});
   const [expandedTasks, setExpandedTasks] = useState({});
   const [unlockedGoals, setUnlockedGoals] = useState({});
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates?.height || 0);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Goal form state
   const [goalFormVisible, setGoalFormVisible] = useState(false);
@@ -130,7 +144,7 @@ export default function WeeklyGoals({ selectedDate }) {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: 100 + keyboardHeight }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Weekly Goals</Text>
         <View style={[styles.progressBadge, { backgroundColor: colors.primaryLight }]}>
@@ -476,7 +490,6 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     paddingTop: 14,
-    paddingBottom: 100,
     gap: 12,
   },
   header: {
