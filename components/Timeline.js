@@ -76,11 +76,23 @@ export default function Timeline({ selectedDate }) {
   }, []);
 
   const visibleGroups = useMemo(
-    () => groups.filter((g) => {
-      if (!shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)) return false;
-      if (isDateHidden(g.hiddenRanges, dateKey)) return false;
-      return true;
-    }),
+    () => {
+      const filtered = groups.filter((g) => {
+        if (!shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)) return false;
+        if (isDateHidden(g.hiddenRanges, dateKey)) return false;
+        return true;
+      });
+      // Pinned-top groups first, unpinned middle (preserving raw order),
+      // pinned-bottom last. Stable within each section.
+      const pinRank = (g) => (g.pinned === 'top' ? -1 : g.pinned === 'bottom' ? 1 : 0);
+      return [...filtered]
+        .map((g, i) => ({ g, i }))
+        .sort((a, b) => {
+          const r = pinRank(a.g) - pinRank(b.g);
+          return r !== 0 ? r : a.i - b.i;
+        })
+        .map(({ g }) => g);
+    },
     [groups, selectedDate, dateKey, isDateHidden]
   );
 

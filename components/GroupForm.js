@@ -15,6 +15,7 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate, f
   const [icon, setIcon] = useState('☀️');
   const [recurrence, setRecurrence] = useState({ type: 'once' });
   const [tasks, setTasks] = useState([]);
+  const [pinned, setPinned] = useState(null); // 'top' | 'bottom' | null
   const [templateSaved, setTemplateSaved] = useState(false);
   const emojiInputRef = useRef(null);
 
@@ -27,6 +28,7 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate, f
       setIcon(resolved.emoji);
       setRecurrence(editGroup.recurrence || { type: 'once' });
       setTasks(editGroup.tasks || []);
+      setPinned(editGroup.pinned || null);
     } else if (fromTemplate) {
       setName(fromTemplate.name);
       setDescription(fromTemplate.description || '');
@@ -34,12 +36,14 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate, f
       setIcon(resolved.emoji);
       setRecurrence(fromTemplate.recurrence || { type: 'once' });
       setTasks([]);
+      setPinned(null);
     } else {
       setName('');
       setDescription('');
       setIcon('☀️');
       setRecurrence({ type: 'once' });
       setTasks([]);
+      setPinned(null);
     }
   }, [editGroup, fromTemplate, visible]);
 
@@ -48,7 +52,16 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate, f
     if (editGroup) {
       dispatch({
         type: 'UPDATE_GROUP',
-        payload: { id: editGroup.id, updates: { name: name.trim(), description: description.trim(), icon, recurrence } },
+        payload: {
+          id: editGroup.id,
+          updates: {
+            name: name.trim(),
+            description: description.trim(),
+            icon,
+            recurrence,
+            pinned: recurrence?.type === 'daily' ? pinned : null,
+          },
+        },
       });
       dispatch({ type: 'REORDER_TASKS', payload: { groupId: editGroup.id, tasks } });
     } else {
@@ -153,6 +166,69 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate, f
 
         <Text style={[styles.label, styles.sectionLabel, { color: colors.textSecondary }]}>REPEATS</Text>
         <RecurrencePicker value={recurrence} onChange={setRecurrence} />
+
+        {recurrence?.type === 'daily' && (
+          <>
+            <Text style={[styles.label, styles.sectionLabel, { color: colors.textSecondary }]}>PIN POSITION</Text>
+            <View style={[styles.pinRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <TouchableOpacity
+                style={[
+                  styles.pinOption,
+                  pinned === null && { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setPinned(null)}
+              >
+                <Text
+                  style={[
+                    styles.pinOptionText,
+                    { color: pinned === null ? '#fff' : colors.text },
+                  ]}
+                >
+                  None
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.pinOption,
+                  pinned === 'top' && { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setPinned('top')}
+              >
+                <Text
+                  style={[
+                    styles.pinOptionText,
+                    { color: pinned === 'top' ? '#fff' : colors.text },
+                  ]}
+                >
+                  📌 Top
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.pinOption,
+                  pinned === 'bottom' && { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setPinned('bottom')}
+              >
+                <Text
+                  style={[
+                    styles.pinOptionText,
+                    { color: pinned === 'bottom' ? '#fff' : colors.text },
+                  ]}
+                >
+                  📌 Bottom
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.pinHint, { color: colors.textMuted }]}>
+              {pinned === 'top'
+                ? 'This group will always appear at the top of the daily list.'
+                : pinned === 'bottom'
+                  ? 'This group will always appear at the bottom of the daily list. New groups will be added above it.'
+                  : 'Use the arrange screen to position this group manually.'}
+            </Text>
+          </>
+        )}
 
         {editGroup && tasks.length > 0 && (
           <>
@@ -302,6 +378,26 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     marginTop: 12,
+  },
+  pinRow: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+  },
+  pinOption: {
+    flex: 1,
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pinHint: {
+    fontSize: 12,
+    marginTop: -4,
   },
   templateBtn: {
     flexDirection: 'row',
