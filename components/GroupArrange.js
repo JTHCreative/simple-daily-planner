@@ -29,9 +29,19 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
   const currentSlot = useRef(-1);
   const isDragging = useRef(false);
 
-  const visibleGroups = groups.filter((g) =>
-    shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)
-  );
+  const visibleGroups = useMemo(() => {
+    const filtered = groups.filter((g) =>
+      shouldShowOnDate(g.recurrence, selectedDate, g.createdDate)
+    );
+    const pinRank = (g) => (g.pinned === 'top' ? -1 : g.pinned === 'bottom' ? 1 : 0);
+    return [...filtered]
+      .map((g, i) => ({ g, i }))
+      .sort((a, b) => {
+        const r = pinRank(a.g) - pinRank(b.g);
+        return r !== 0 ? r : a.i - b.i;
+      })
+      .map(({ g }) => g);
+  }, [groups, selectedDate]);
 
   const applyReorder = useCallback(
     (fromIndex, toIndex) => {
@@ -140,15 +150,36 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
       <View style={styles.container} {...panResponder.panHandlers}>
         <Text style={[styles.hint, { color: colors.textMuted }]}>
           Long press and drag to reorder, or use the arrows.{'\n'}Daily groups
-          are reordered for all days.
+          are reordered for all days. Pinned groups stay in place — edit the
+          group to unpin.
         </Text>
 
         <View style={{ minHeight: visibleGroups.length * ROW_HEIGHT }}>
           {visibleGroups.map((group, index) => {
             const icon = getIconById(group.icon);
             const isDaily = group.recurrence?.type === 'daily';
+            const isPinned = group.pinned === 'top' || group.pinned === 'bottom';
+            const pinLabel =
+              group.pinned === 'top'
+                ? '📌 Pinned Top'
+                : group.pinned === 'bottom'
+                  ? '📌 Pinned Bottom'
+                  : null;
             const isDraggedItem = draggingIndex === index;
             const shift = getShiftForIndex(index);
+
+            // Compute neighbor pin status to constrain arrow movement so
+            // the user can't drag an unpinned item across a pin boundary.
+            const prev = visibleGroups[index - 1];
+            const next = visibleGroups[index + 1];
+            const upDisabled =
+              isPinned ||
+              index === 0 ||
+              (group.pinned !== 'top' && prev?.pinned === 'top');
+            const downDisabled =
+              isPinned ||
+              index === visibleGroups.length - 1 ||
+              (group.pinned !== 'bottom' && next?.pinned === 'bottom');
 
             const rowStyle = isDraggedItem
               ? [
@@ -183,12 +214,14 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
               >
                 <Pressable
                   style={rowStyle}
-                  onLongPress={(e) =>
-                    handleLongPress(index, e.nativeEvent.pageY)
+                  onLongPress={
+                    isPinned
+                      ? undefined
+                      : (e) => handleLongPress(index, e.nativeEvent.pageY)
                   }
                   delayLongPress={200}
                 >
-                  <View style={styles.dragHandle}>
+                  <View style={[styles.dragHandle, isPinned && { opacity: 0.25 }]}>
                     <View style={[styles.handleBar, { backgroundColor: colors.textMuted }]} />
                     <View style={[styles.handleBar, { backgroundColor: colors.textMuted }]} />
                     <View style={[styles.handleBar, { backgroundColor: colors.textMuted }]} />
@@ -200,22 +233,22 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
                     <Text style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>
                       {group.name}
                     </Text>
-                    <Text style={[styles.rowBadge, { color: colors.textMuted }]}>
-                      {isDaily ? 'Daily' : 'Once'}
+                    <Text style={[styles.rowBadge, { color: pinLabel ? colors.primary : colors.textMuted }]}>
+                      {pinLabel || (isDaily ? 'Daily' : 'Once')}
                     </Text>
                   </View>
                   <View style={styles.arrows}>
                     <TouchableOpacity
                       onPress={() => moveGroup(index, index - 1)}
-                      disabled={index === 0 || draggingIndex >= 0}
-                      style={[styles.arrowBtn, index === 0 && { opacity: 0.25 }]}
+                      disabled={upDisabled || draggingIndex >= 0}
+                      style={[styles.arrowBtn, upDisabled && { opacity: 0.25 }]}
                     >
                       <View style={[styles.chevron, styles.chevronUp, { borderColor: colors.text }]} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => moveGroup(index, index + 1)}
-                      disabled={index === visibleGroups.length - 1 || draggingIndex >= 0}
-                      style={[styles.arrowBtn, index === visibleGroups.length - 1 && { opacity: 0.25 }]}
+                      disabled={downDisabled || draggingIndex >= 0}
+                      style={[styles.arrowBtn, downDisabled && { opacity: 0.25 }]}
                     >
                       <View style={[styles.chevron, styles.chevronDown, { borderColor: colors.text }]} />
                     </TouchableOpacity>
