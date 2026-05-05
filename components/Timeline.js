@@ -204,25 +204,35 @@ export default function Timeline({ selectedDate }) {
                 )}
               </View>
               {isPastDay ? (
-                <TouchableOpacity
-                  style={[
-                    styles.unlockBtn,
-                    {
-                      backgroundColor: unlockedGroups[group.id] ? colors.primary : colors.surface,
-                      borderColor: unlockedGroups[group.id] ? colors.primary : colors.border,
-                    },
-                  ]}
-                  onPress={() =>
-                    setUnlockedGroups((prev) => ({ ...prev, [group.id]: !prev[group.id] }))
-                  }
-                >
-                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                    <Path
-                      d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-                      fill={unlockedGroups[group.id] ? '#fff' : colors.textMuted}
-                    />
-                  </Svg>
-                </TouchableOpacity>
+                <View style={styles.pastDayActions}>
+                  {unlockedGroups[group.id] && (
+                    <TouchableOpacity
+                      style={[styles.addTaskBtn, { backgroundColor: colors.addBtnBg, borderColor: colors.addBtnBorder, borderWidth: colors.addBtnBorder !== 'transparent' ? 1.5 : 0 }]}
+                      onPress={() => openAddTask(group.id, group.name, group.recurrence)}
+                    >
+                      <Text style={[styles.addTaskPlus, { color: colors.addBtnText }]}>+ Add Task</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    style={[
+                      styles.unlockBtn,
+                      {
+                        backgroundColor: unlockedGroups[group.id] ? colors.primary : colors.surface,
+                        borderColor: unlockedGroups[group.id] ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() =>
+                      setUnlockedGroups((prev) => ({ ...prev, [group.id]: !prev[group.id] }))
+                    }
+                  >
+                    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                      <Path
+                        d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                        fill={unlockedGroups[group.id] ? '#fff' : colors.textMuted}
+                      />
+                    </Svg>
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <TouchableOpacity
                   style={[styles.addTaskBtn, { backgroundColor: colors.addBtnBg, borderColor: colors.addBtnBorder, borderWidth: colors.addBtnBorder !== 'transparent' ? 1.5 : 0 }]}
@@ -264,7 +274,7 @@ export default function Timeline({ selectedDate }) {
                     onEditSubtask={(t, st) => openEditSubtask(group.id, t, st)}
                   />
                 ))}
-                {visibleTasks.length === 0 && !isPastDay && (
+                {visibleTasks.length === 0 && (!isPastDay || unlockedGroups[group.id]) && (
                   <TouchableOpacity
                     style={[styles.addFirstTask, { borderColor: colors.border }]}
                     onPress={() => openAddTask(group.id, group.name, group.recurrence)}
@@ -448,6 +458,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pastDayActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   taskArea: {
     position: 'relative',

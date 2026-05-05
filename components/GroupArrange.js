@@ -9,6 +9,7 @@ import {
   Vibration,
   StyleSheet,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import BottomSheet from './BottomSheet';
 import { getIconById } from '../utils/icons';
 import { useGroups, useDispatch } from '../context/PlannerContext';
@@ -16,6 +17,14 @@ import { shouldShowOnDate } from '../utils/recurrence';
 import { useTheme } from '../utils/theme';
 
 const ROW_HEIGHT = 72;
+
+function PinIcon({ size = 12, color = '#000', rotate = 0 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={{ transform: [{ rotate: `${rotate}deg` }] }}>
+      <Path d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5l-2 2v2h5.2v7l.8.8.8-.8v-7H18v-2l-2-2z" />
+    </Svg>
+  );
+}
 
 export default function GroupArrange({ visible, onClose, selectedDate }) {
   const colors = useTheme();
@@ -161,10 +170,11 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
             const isPinned = group.pinned === 'top' || group.pinned === 'bottom';
             const pinLabel =
               group.pinned === 'top'
-                ? '📌 Pinned Top'
+                ? 'Pinned Top'
                 : group.pinned === 'bottom'
-                  ? '📌 Pinned Bottom'
+                  ? 'Pinned Bottom'
                   : null;
+            const pinRotate = group.pinned === 'bottom' ? 135 : -45;
             const isDraggedItem = draggingIndex === index;
             const shift = getShiftForIndex(index);
 
@@ -233,9 +243,18 @@ export default function GroupArrange({ visible, onClose, selectedDate }) {
                     <Text style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>
                       {group.name}
                     </Text>
-                    <Text style={[styles.rowBadge, { color: pinLabel ? colors.primary : colors.textMuted }]}>
-                      {pinLabel || (isDaily ? 'Daily' : 'Once')}
-                    </Text>
+                    {pinLabel ? (
+                      <View style={styles.rowBadgeRow}>
+                        <PinIcon size={11} color={colors.primary} rotate={pinRotate} />
+                        <Text style={[styles.rowBadge, { color: colors.primary }]}>
+                          {pinLabel}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.rowBadge, { color: colors.textMuted }]}>
+                        {isDaily ? 'Daily' : 'Once'}
+                      </Text>
+                    )}
                   </View>
                   <View style={styles.arrows}>
                     <TouchableOpacity
@@ -328,6 +347,11 @@ const styles = StyleSheet.create({
   },
   rowBadge: {
     fontSize: 11,
+  },
+  rowBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   arrows: {
     flexDirection: 'column',
