@@ -1,11 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import BottomSheet from './BottomSheet';
 import RecurrencePicker from './RecurrencePicker';
 import DraggableTaskList from './DraggableTaskList';
 import { useDispatch } from '../context/PlannerContext';
 import { getIconById } from '../utils/icons';
 import { useTheme } from '../utils/theme';
+
+function PinIcon({ size = 14, color = '#000', rotate = 0 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={{ transform: [{ rotate: `${rotate}deg` }] }}>
+      <Path d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5l-2 2v2h5.2v7l.8.8.8-.8v-7H18v-2l-2-2z" />
+    </Svg>
+  );
+}
 
 export default function GroupForm({ visible, onClose, editGroup, selectedDate, fromTemplate }) {
   const colors = useTheme();
@@ -194,13 +203,14 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate, f
                 ]}
                 onPress={() => setPinned('top')}
               >
+                <PinIcon size={14} color={pinned === 'top' ? '#fff' : colors.text} rotate={-45} />
                 <Text
                   style={[
                     styles.pinOptionText,
                     { color: pinned === 'top' ? '#fff' : colors.text },
                   ]}
                 >
-                  📌 Top
+                  Top
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -210,13 +220,14 @@ export default function GroupForm({ visible, onClose, editGroup, selectedDate, f
                 ]}
                 onPress={() => setPinned('bottom')}
               >
+                <PinIcon size={14} color={pinned === 'bottom' ? '#fff' : colors.text} rotate={135} />
                 <Text
                   style={[
                     styles.pinOptionText,
                     { color: pinned === 'bottom' ? '#fff' : colors.text },
                   ]}
                 >
-                  📌 Bottom
+                  Bottom
                 </Text>
               </TouchableOpacity>
             </View>
@@ -387,9 +398,11 @@ const styles = StyleSheet.create({
   },
   pinOption: {
     flex: 1,
+    flexDirection: 'row',
     paddingVertical: 11,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
   pinOptionText: {
     fontSize: 14,
