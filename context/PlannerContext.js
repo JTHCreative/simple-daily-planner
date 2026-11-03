@@ -1,6 +1,9 @@
 import 'react-native-get-random-values';
-import { createContext, useContext, useReducer, useEffect, useRef, useMemo } from 'react';
+import { createContext, useContext, useReducer, useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import { AppState } from 'react-native';
 import { loadData, saveData } from '../utils/storage';
+import { getEffectiveToday, getWeekKey, toLocalDateKey } from '../utils/dateHelpers';
+import { fetchHomeCenterWeek, pushHomeCenterChanges, collectHomeCenterChanges } from '../utils/homeCenter';
 import { v4 as uuid } from 'uuid';
 import { scheduleTaskAlarm, cancelTaskAlarm } from '../utils/notifications';
 
@@ -11,6 +14,17 @@ const WeeklyGoalsContext = createContext();
 const SettingsContext = createContext();
 const TemplatesContext = createContext();
 const DispatchContext = createContext();
+const HomeCenterSyncContext = createContext();
+
+// Home Center goal sync defaults. `sectionIds: null` pulls every section.
+export const HOME_CENTER_DEFAULTS = { enabled: true, sectionIds: null };
+export const getHomeCenterSettings = (settings) => ({
+  ...HOME_CENTER_DEFAULTS,
+  ...(settings?.homeCenter || {}),
+});
+
+// While the app stays open, re-check this often whether a new day has started.
+const HOME_CENTER_CHECK_MS = 30 * 60 * 1000;
 
 const DEFAULT_STATE = {
   groups: [],
@@ -26,8 +40,17 @@ const DEFAULT_STATE = {
 
 function reducer(state, action) {
   switch (action.type) {
-    case 'LOAD_DATA':
-      return { ...DEFAULT_STATE, ...action.payload };
+    case 'LOAD_DATA': {
+      const loadedState = { ...DEFAULT_STATE, ...action.payload };
+      // Tally-box goals are no longer pulled from Home Center; drop any
+      // imported earlier (unless daily tasks are linked to them).
+      loadedState.weeklyGoals = (loadedState.weeklyGoals || []).filter(
+        (g) =>
+          !(g.source === 'home-center' && g.tally) ||
+          (g.tasks || []).some((t) => t.linkedDailyTaskId)
+      );
+      return loadedState;
+    }
 
     case 'ADD_GROUP': {
       const createdDate = action.payload.createdDate || new Date().toISOString().split('T')[0];
@@ -645,6 +668,57 @@ function reducer(state, action) {
       return { ...state, weeklyGoals: tgtWeeklyGoals, completedTasks: tgtCompleted };
     }
 
+    case 'MARK_HOME_CENTER_PUSHED': {
+      // Record that these check-offs reached Home Center (see
+      // collectHomeCenterChanges). If the item was toggled again meanwhile,
+      // it stays out of sync and goes out on the next push.
+      const refsByGoal = new Map();
+      for (const r of action.payload.refs) {
+        if (!refsByGoal.has(r.goalId)) refsByGoal.set(r.goalId, []);
+        refsByGoal.get(r.goalId).push(r);
+      }
+      const weeklyGoals = state.weeklyGoals.map((g) => {
+        const refs = refsByGoal.get(g.id);
+        if (!refs) return g;
+        let goal = g;
+        for (const r of refs) {
+          if (!r.taskId) {
+            goal = { ...goal, syncedCompleted: r.value };
+            continue;
+          }
+          goal = {
+            ...goal,
+            tasks: (goal.tasks || []).map((t) => {
+              if (t.id !== r.taskId) return t;
+              if (r.subtaskId) {
+                const subtasks = (t.subtasks || []).map((st) =>
+                  st.id === r.subtaskId ? { ...st, syncedCompleted: r.value } : st
+                );
+                return { ...t, subtasks, syncedCompleted: t.completed };
+              }
+              if (r.cascade) {
+                const subtasks = (t.subtasks || []).map((st) =>
+                  st.remoteId ? { ...st, completed: r.value, syncedCompleted: r.value } : st
+                );
+                return { ...t, subtasks, syncedCompleted: r.value };
+              }
+              return { ...t, syncedCompleted: r.value };
+            }),
+          };
+        }
+        return goal;
+      });
+      return { ...state, weeklyGoals };
+    }
+
+    case 'UPDATE_HOME_CENTER': {
+      const settings = state.settings || {};
+      return {
+        ...state,
+        settings: { ...settings, homeCenter: { ...(settings.homeCenter || {}), ...action.payload } },
+      };
+    }
+
     case 'UPDATE_SETTINGS': {
       const settings = { ...(state.settings || {}), ...action.payload };
       return { ...state, settings };
@@ -784,6 +858,92 @@ function reducer(state, action) {
       return { ...state, weeklyGoals: gsWeeklyGoals, completedTasks: gsCompleted };
     }
 
+    case 'SYNC_HOME_CENTER_GOALS': {
+      // Merge goals pulled from Home Center into this week's weekly goals.
+      // Imported goals are tagged source: 'home-center' + remoteId. Completion
+      // is a three-way merge: if Home Center's value changed since the last
+      // pull it wins, otherwise whatever was checked here is kept.
+      const { weekKey: syncWeek, goals: remoteGoals } = action.payload;
+      const pickDone = (remoteVal, local) =>
+        local && local.syncedCompleted === remoteVal ? !!local.completed : remoteVal;
+
+      const mergeTasks = (remoteTasks, localTasks = []) => {
+        const byRemote = new Map(localTasks.filter((t) => t.remoteId).map((t) => [t.remoteId, t]));
+        const merged = remoteTasks.map((rt) => {
+          const lt = byRemote.get(rt.remoteId);
+          const stByRemote = new Map((lt?.subtasks || []).filter((s) => s.remoteId).map((s) => [s.remoteId, s]));
+          const subtasks = rt.subtasks.map((rs) => {
+            const ls = stByRemote.get(rs.remoteId);
+            return {
+              ...(ls || {}),
+              id: ls?.id || `st-hc-${rs.remoteId}`,
+              remoteId: rs.remoteId,
+              name: rs.name,
+              completed: pickDone(rs.completed, ls),
+              syncedCompleted: rs.completed,
+            };
+          });
+          const completed =
+            subtasks.length > 0 ? subtasks.every((s) => s.completed) : pickDone(rt.completed, lt);
+          return {
+            description: '',
+            ...(lt || {}),
+            id: lt?.id || uuid(),
+            remoteId: rt.remoteId,
+            name: rt.name,
+            subtasks,
+            completed,
+            syncedCompleted: rt.completed,
+          };
+        });
+        // Keep tasks added by hand in the planner (no remoteId).
+        return [...merged, ...localTasks.filter((t) => !t.remoteId)];
+      };
+
+      const existing = new Map(
+        state.weeklyGoals
+          .filter((g) => g.source === 'home-center' && g.weekKey === syncWeek)
+          .map((g) => [g.remoteId, g])
+      );
+      const remoteIds = new Set(remoteGoals.map((r) => r.remoteId));
+      const hasLinks = (g) => (g.tasks || []).some((t) => t.linkedDailyTaskId);
+
+      const toGoal = (rg, lg) => ({
+        ...(lg || {}),
+        id: lg?.id || uuid(),
+        source: 'home-center',
+        remoteId: rg.remoteId,
+        remoteWeek: rg.remoteWeek,
+        habit: rg.habit,
+        habitMembers: rg.habitMembers,
+        sectionTitle: rg.sectionTitle,
+        weekKey: syncWeek,
+        text: rg.text,
+        icon: lg?.icon || rg.icon,
+        tasks: mergeTasks(rg.tasks, lg?.tasks),
+        completed: pickDone(rg.completed, lg),
+        syncedCompleted: rg.completed,
+      });
+
+      const syncedGoals = state.weeklyGoals
+        // Drop imported goals that are gone from Home Center (or deselected),
+        // unless daily tasks are linked to them.
+        .filter(
+          (g) =>
+            !(g.source === 'home-center' && g.weekKey === syncWeek) ||
+            remoteIds.has(g.remoteId) ||
+            hasLinks(g)
+        )
+        .map((g) =>
+          g.source === 'home-center' && g.weekKey === syncWeek && remoteIds.has(g.remoteId)
+            ? toGoal(remoteGoals.find((r) => r.remoteId === g.remoteId), g)
+            : g
+        );
+      const added = remoteGoals.filter((r) => !existing.has(r.remoteId)).map((r) => toGoal(r, null));
+
+      return { ...state, weeklyGoals: [...syncedGoals, ...added] };
+    }
+
     case 'PURGE_STALE_DELETED': {
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -814,6 +974,72 @@ function reducer(state, action) {
 export function PlannerProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, DEFAULT_STATE);
   const isLoaded = useRef(false);
+  const [loaded, setLoaded] = useState(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // --- Home Center goal sync ---------------------------------------------
+  // Two directions, run one at a time:
+  //  - push: check-offs made here that Home Center hasn't seen yet are sent
+  //    shortly after they happen (and retried later if offline).
+  //  - pull: this week's goals are fetched at most once per planner day
+  //    (days reset at 3 AM). `force` pulls now regardless.
+  const [hcSyncing, setHcSyncing] = useState(false);
+  const hcInFlight = useRef(false);
+  const hcQueued = useRef(false);
+  const syncHomeCenter = useCallback(async ({ force = false, overrides } = {}) => {
+    if (!isLoaded.current) return;
+    if (hcInFlight.current) {
+      hcQueued.current = true; // run again once the current sync finishes
+      return;
+    }
+    const settings = stateRef.current.settings || {};
+    const hc = { ...getHomeCenterSettings(settings), ...(overrides || {}) };
+    if (!hc.enabled && !force) return;
+    const today = getEffectiveToday(settings.timezone);
+    const dayKey = toLocalDateKey(today);
+    const pullDue = force || hc.lastSyncedDay !== dayKey;
+    const pending = collectHomeCenterChanges(stateRef.current.weeklyGoals);
+    if (!pullDue && pending.changes.length === 0) return;
+
+    hcInFlight.current = true;
+    if (pullDue) setHcSyncing(true);
+    try {
+      if (pending.changes.length > 0) {
+        await pushHomeCenterChanges(pending.changes);
+        dispatch({ type: 'MARK_HOME_CENTER_PUSHED', payload: { refs: pending.refs } });
+      }
+      if (pullDue) {
+        const goals = await fetchHomeCenterWeek(today, hc.sectionIds);
+        dispatch({ type: 'SYNC_HOME_CENTER_GOALS', payload: { weekKey: getWeekKey(today), goals } });
+        dispatch({
+          type: 'UPDATE_HOME_CENTER',
+          payload: { lastSyncedDay: dayKey, lastSyncedAt: Date.now(), lastError: null },
+        });
+      } else if (hc.lastError) {
+        dispatch({ type: 'UPDATE_HOME_CENTER', payload: { lastError: null } });
+      }
+    } catch (e) {
+      // Offline or Home Center unreachable — unsent check-offs stay queued and
+      // everything is retried on the next check.
+      dispatch({ type: 'UPDATE_HOME_CENTER', payload: { lastError: e?.message || 'Sync failed' } });
+    } finally {
+      hcInFlight.current = false;
+      setHcSyncing(false);
+      if (hcQueued.current) {
+        hcQueued.current = false;
+        setTimeout(() => syncHomeCenter(), 0);
+      }
+    }
+  }, []);
+
+  // Send check-offs to Home Center shortly after they're made. The short delay
+  // groups quick taps into one update.
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => syncHomeCenter(), 1500);
+    return () => clearTimeout(t);
+  }, [state.weeklyGoals, loaded, syncHomeCenter]);
 
   useEffect(() => {
     loadData().then((saved) => {
@@ -823,8 +1049,32 @@ export function PlannerProvider({ children }) {
       isLoaded.current = true;
       // Purge soft-deleted tasks/groups older than 1 year
       dispatch({ type: 'PURGE_STALE_DELETED' });
+      setLoaded(true);
     });
   }, []);
+
+  // First Home Center pull once saved data is loaded (and rendered into stateRef).
+  useEffect(() => {
+    if (loaded) syncHomeCenter();
+  }, [loaded, syncHomeCenter]);
+
+  // Daily Home Center pull: on returning to the app, and periodically while
+  // open so a new day (after 3 AM) picks up fresh goals.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') syncHomeCenter();
+    });
+    const timer = setInterval(() => syncHomeCenter(), HOME_CENTER_CHECK_MS);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
+  }, [syncHomeCenter]);
+
+  const hcSyncValue = useMemo(
+    () => ({ syncing: hcSyncing, sync: syncHomeCenter }),
+    [hcSyncing, syncHomeCenter]
+  );
 
   useEffect(() => {
     if (isLoaded.current) {
@@ -841,6 +1091,7 @@ export function PlannerProvider({ children }) {
 
   return (
     <DispatchContext.Provider value={dispatch}>
+      <HomeCenterSyncContext.Provider value={hcSyncValue}>
       <GroupsContext.Provider value={groups}>
         <CompletionContext.Provider value={completedTasks}>
           <WeeklyGoalsContext.Provider value={weeklyGoals}>
@@ -852,6 +1103,7 @@ export function PlannerProvider({ children }) {
           </WeeklyGoalsContext.Provider>
         </CompletionContext.Provider>
       </GroupsContext.Provider>
+      </HomeCenterSyncContext.Provider>
     </DispatchContext.Provider>
   );
 }
@@ -890,6 +1142,12 @@ export function useTemplates() {
 export function useDispatch() {
   const ctx = useContext(DispatchContext);
   if (!ctx) throw new Error('useDispatch must be used within PlannerProvider');
+  return ctx;
+}
+
+export function useHomeCenterSync() {
+  const ctx = useContext(HomeCenterSyncContext);
+  if (!ctx) throw new Error('useHomeCenterSync must be used within PlannerProvider');
   return ctx;
 }
 

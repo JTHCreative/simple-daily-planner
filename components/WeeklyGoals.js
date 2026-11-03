@@ -3,19 +3,11 @@ import { View, Text, TextInput, TouchableOpacity, Pressable, ScrollView, Keyboar
 import Svg, { Path } from 'react-native-svg';
 import { useWeeklyGoals, useGroups, useDispatch, useSettings } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
-import { getEffectiveToday } from '../utils/dateHelpers';
+import { getEffectiveToday, getWeekKey } from '../utils/dateHelpers';
 import WeeklyGoalForm from './WeeklyGoalForm';
 import WeeklyTaskForm from './WeeklyTaskForm';
 import TaskArrange from './TaskArrange';
 import CompletedBanner from './CompletedBanner';
-
-function getWeekKey(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day;
-  const weekStart = new Date(d.setDate(diff));
-  return weekStart.toISOString().split('T')[0];
-}
 
 export default function WeeklyGoals({ selectedDate }) {
   const colors = useTheme();
@@ -175,6 +167,7 @@ export default function WeeklyGoals({ selectedDate }) {
         const goalIcon = goal.icon || '🎯';
         const isUnlocked = !!unlockedGoals[goal.id];
         const isLocked = isPastWeek && !isUnlocked;
+        const isCheckableGoal = goal.source === 'home-center' && !hasTasks;
 
         return (
           <View
@@ -190,9 +183,34 @@ export default function WeeklyGoals({ selectedDate }) {
               onLongPress={() => openEditGoal(goal)}
               delayLongPress={400}
             >
-              <View style={[styles.goalIcon, { backgroundColor: colors.primaryLight }]}>
-                <Text style={styles.goalIconText}>{goalIcon}</Text>
-              </View>
+              {isCheckableGoal ? (
+                // Home Center goal with no sub-items: the icon is its checkbox.
+                <TouchableOpacity
+                  style={[
+                    styles.goalIcon,
+                    {
+                      backgroundColor: goal.completed ? colors.primary : colors.primaryLight,
+                      borderWidth: 2,
+                      borderColor: goal.completed ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => {
+                    if (isLocked) return;
+                    dispatch({ type: 'TOGGLE_WEEKLY_GOAL', payload: goal.id });
+                  }}
+                  hitSlop={6}
+                >
+                  {goal.completed ? (
+                    <Text style={[styles.goalIconText, { color: '#fff', fontWeight: '700' }]}>✓</Text>
+                  ) : (
+                    <Text style={styles.goalIconText}>{goalIcon}</Text>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <View style={[styles.goalIcon, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={styles.goalIconText}>{goalIcon}</Text>
+                </View>
+              )}
               <View style={styles.goalInfo}>
                 <Text
                   style={[
@@ -210,6 +228,15 @@ export default function WeeklyGoals({ selectedDate }) {
                   <Text style={[styles.goalMeta, { color: colors.textMuted }]}>
                     {tasksDone}/{tasks.length} tasks
                   </Text>
+                )}
+                {goal.source === 'home-center' && (
+                  <View style={styles.linkedBadgeRow}>
+                    <View style={[styles.linkedBadge, { backgroundColor: colors.primaryLight }]}>
+                      <Text style={[styles.linkedBadgeText, { color: colors.primary }]}>
+                        🏠 Home Center{goal.sectionTitle ? ` · ${goal.sectionTitle}` : ''}
+                      </Text>
+                    </View>
+                  </View>
                 )}
                 {linkedDailyTaskCounts[goal.id] > 0 && (
                   <View style={styles.linkedBadgeRow}>
