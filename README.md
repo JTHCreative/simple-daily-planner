@@ -19,3 +19,4 @@ Scan the QR code with Expo Go on your phone.
 - **Timeline View** - Groups connected by a visual path showing your day's flow
 - **Weekly Goals** - Track goals for the current week
 - **Dark Mode** - Follows system preference
+- **Home Center Sync** - Pulls this week's goals from the [Home Center](https://jthcreative.github.io/home-center/#/dashboard) dashboard once a day (on app open / return to foreground, after the 3 AM day reset). Sub-items become tasks, nested sub-items become subtasks, and tally goals show their count (e.g. 3/7). Choose which Home Center goal lists to pull, or sync on demand, under Settings → Home Center Goals.

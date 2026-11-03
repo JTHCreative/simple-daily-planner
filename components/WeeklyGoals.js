@@ -3,19 +3,11 @@ import { View, Text, TextInput, TouchableOpacity, Pressable, ScrollView, Keyboar
 import Svg, { Path } from 'react-native-svg';
 import { useWeeklyGoals, useGroups, useDispatch, useSettings } from '../context/PlannerContext';
 import { useTheme } from '../utils/theme';
-import { getEffectiveToday } from '../utils/dateHelpers';
+import { getEffectiveToday, getWeekKey } from '../utils/dateHelpers';
 import WeeklyGoalForm from './WeeklyGoalForm';
 import WeeklyTaskForm from './WeeklyTaskForm';
 import TaskArrange from './TaskArrange';
 import CompletedBanner from './CompletedBanner';
-
-function getWeekKey(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day;
-  const weekStart = new Date(d.setDate(diff));
-  return weekStart.toISOString().split('T')[0];
-}
 
 export default function WeeklyGoals({ selectedDate }) {
   const colors = useTheme();
@@ -210,6 +202,20 @@ export default function WeeklyGoals({ selectedDate }) {
                   <Text style={[styles.goalMeta, { color: colors.textMuted }]}>
                     {tasksDone}/{tasks.length} tasks
                   </Text>
+                )}
+                {goal.tally && (
+                  <Text style={[styles.goalMeta, { color: colors.textMuted }]}>
+                    {goal.tally.done}/{goal.tally.target} this week
+                  </Text>
+                )}
+                {goal.source === 'home-center' && (
+                  <View style={styles.linkedBadgeRow}>
+                    <View style={[styles.linkedBadge, { backgroundColor: colors.primaryLight }]}>
+                      <Text style={[styles.linkedBadgeText, { color: colors.primary }]}>
+                        🏠 Home Center{goal.sectionTitle ? ` · ${goal.sectionTitle}` : ''}
+                      </Text>
+                    </View>
+                  </View>
                 )}
                 {linkedDailyTaskCounts[goal.id] > 0 && (
                   <View style={styles.linkedBadgeRow}>

@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, Modal, Pressable, ScrollView, Switch, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSettings, useDispatch } from '../context/PlannerContext';
+import { useSettings, useDispatch, useHomeCenterSync, getHomeCenterSettings } from '../context/PlannerContext';
+import { fetchHomeCenterSections } from '../utils/homeCenter';
 import { useTheme } from '../utils/theme';
 import { getDeviceTimezone } from '../utils/dateHelpers';
 import TimezonePicker from './TimezonePicker';
@@ -18,6 +19,42 @@ export default function SettingsModal({ visible, onClose }) {
   const dispatch = useDispatch();
   const [name, setName] = useState(settings.userName || '');
   const [tzPickerOpen, setTzPickerOpen] = useState(false);
+
+  const { syncing, sync } = useHomeCenterSync();
+  const hc = getHomeCenterSettings(settings);
+  const [hcSections, setHcSections] = useState(null); // null = loading / unavailable
+
+  // Load Home Center's goal lists for the picker whenever settings opens.
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    fetchHomeCenterSections()
+      .then((list) => !cancelled && setHcSections(list))
+      .catch(() => !cancelled && setHcSections(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
+
+  const setHomeCenter = (patch, resync = false) => {
+    dispatch({ type: 'UPDATE_HOME_CENTER', payload: patch });
+    if (resync) sync({ force: true, overrides: patch });
+  };
+
+  const toggleHcSection = (id) => {
+    const all = (hcSections || []).map((x) => x.id);
+    const current = hc.sectionIds || all;
+    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+    setHomeCenter({ sectionIds: next }, true);
+  };
+
+  const lastSynced = hc.lastSyncedAt
+    ? new Date(hc.lastSyncedAt).toLocaleString([], {
+        weekday: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : 'Never';
 
   const currentMode = settings.themeMode || 'system';
   const deviceTz = getDeviceTimezone();
@@ -48,7 +85,7 @@ export default function SettingsModal({ visible, onClose }) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.content}>
+        <ScrollView contentContainerStyle={styles.content}>
           {/* Name Setting */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>YOUR NAME</Text>
@@ -123,6 +160,64 @@ export default function SettingsModal({ visible, onClose }) {
             </Text>
           </View>
 
+          {/* Home Center Sync */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>HOME CENTER GOALS</Text>
+            <View style={[styles.hcCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.hcRow}>
+                <Text style={[styles.hcLabel, { color: colors.text }]}>Pull weekly goals daily</Text>
+                <Switch
+                  value={hc.enabled}
+                  onValueChange={(v) => setHomeCenter({ enabled: v }, v)}
+                  trackColor={{ true: colors.primary }}
+                />
+              </View>
+
+              {hc.enabled && (
+                <>
+                  <View style={[styles.hcDivider, { backgroundColor: colors.border }]} />
+                  {hcSections === null ? (
+                    <Text style={[styles.sectionHint, { color: colors.textMuted }]}>Loading goal lists…</Text>
+                  ) : (
+                    hcSections.map((sec) => {
+                      const checked = !hc.sectionIds || hc.sectionIds.includes(sec.id);
+                      return (
+                        <Pressable key={sec.id} style={styles.hcRow} onPress={() => toggleHcSection(sec.id)}>
+                          <Text style={[styles.hcLabel, { color: colors.text }]}>{sec.title}</Text>
+                          <View
+                            style={[
+                              styles.hcCheck,
+                              {
+                                borderColor: checked ? colors.primary : colors.border,
+                                backgroundColor: checked ? colors.primary : 'transparent',
+                              },
+                            ]}
+                          >
+                            {checked && <Text style={styles.hcCheckMark}>✓</Text>}
+                          </View>
+                        </Pressable>
+                      );
+                    })
+                  )}
+                  <View style={[styles.hcDivider, { backgroundColor: colors.border }]} />
+                  <TouchableOpacity
+                    style={styles.hcRow}
+                    onPress={() => sync({ force: true })}
+                    disabled={syncing}
+                  >
+                    <Text style={[styles.hcLabel, { color: colors.primary, fontWeight: '600' }]}>Sync now</Text>
+                    {syncing && <ActivityIndicator size="small" color={colors.primary} />}
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+            <Text style={[styles.sectionHint, { color: hc.lastError ? colors.danger : colors.textMuted }]}>
+              {hc.lastError
+                ? `Couldn't reach Home Center (${hc.lastError}). Will retry automatically.`
+                : `Last synced: ${lastSynced}. This week's goals are pulled once a day when you open the app.`}
+            </Text>
+          </View>
+
           <TimezonePicker
             visible={tzPickerOpen}
             onClose={() => setTzPickerOpen(false)}
@@ -130,7 +225,7 @@ export default function SettingsModal({ visible, onClose }) {
             currentTz={settings.timezone}
             deviceTz={deviceTz}
           />
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </Modal>
   );
@@ -229,6 +324,39 @@ const styles = StyleSheet.create({
   },
   tzSelectorLabel: {
     fontSize: 16,
+  },
+  hcCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+  },
+  hcRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    minHeight: 44,
+  },
+  hcLabel: {
+    fontSize: 16,
+    flex: 1,
+  },
+  hcDivider: {
+    height: 1,
+  },
+  hcCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hcCheckMark: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   tzChevron: {
     width: 10,

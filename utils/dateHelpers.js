@@ -61,3 +61,24 @@ export function getDeviceTimezone() {
     return null;
   }
 }
+
+/**
+ * Key for the week (Sunday start) containing `date`, used to file weekly goals.
+ */
+export function getWeekKey(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day;
+  const weekStart = new Date(d.setDate(diff));
+  return weekStart.toISOString().split('T')[0];
+}
+
+/**
+ * Local 'YYYY-MM-DD' for a date (no UTC shift).
+ */
+export function toLocalDateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
