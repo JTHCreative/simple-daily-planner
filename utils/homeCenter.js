@@ -102,7 +102,8 @@ export async function fetchHomeCenterSections() {
  *   Home Center goal       -> planner goal
  *   goal's sub-item        -> goal task
  *   sub-item's sub-item    -> task subtask
- * Tally goals ("Read Bible 3/7") carry their count in `tally`.
+ * Tally-box goals (e.g. "Read Bible 3/7") are skipped: they're recurring
+ * habits rather than tasks for the week.
  *
  * `sectionIds` limits which Home Center sections are pulled (null = all).
  */
@@ -121,6 +122,7 @@ export async function fetchHomeCenterWeek(date, sectionIds) {
     if (sectionIds && !sectionIds.includes(section.id)) continue;
     for (const item of section.items || []) {
       if (!item.title?.trim() || !inWeek(item, weekKey)) continue;
+      if (item.type === 'tally') continue;
 
       const tasks = kids(item).map((c) => {
         const subtasks = kids(c).map((g) => ({
@@ -137,18 +139,8 @@ export async function fetchHomeCenterWeek(date, sectionIds) {
         };
       });
 
-      let tally = null;
-      let completed;
-      if (tasks.length > 0) {
-        completed = tasks.every((t) => t.completed);
-      } else if (item.type === 'tally') {
-        const target = item.target || 0;
-        const done = (itemProgress[item.id]?.checks || []).slice(0, target).filter(Boolean).length;
-        tally = { done, target };
-        completed = target > 0 && done >= target;
-      } else {
-        completed = !!itemProgress[item.id]?.done;
-      }
+      const completed =
+        tasks.length > 0 ? tasks.every((t) => t.completed) : !!itemProgress[item.id]?.done;
 
       goals.push({
         remoteId: item.id,
@@ -158,8 +150,7 @@ export async function fetchHomeCenterWeek(date, sectionIds) {
         sectionId: section.id,
         sectionTitle: section.title || '',
         text: item.title.trim(),
-        icon: item.type === 'tally' ? '🔁' : '🎯',
-        tally,
+        icon: '🎯',
         completed,
         tasks,
       });
@@ -245,8 +236,8 @@ export function collectHomeCenterChanges(weeklyGoals) {
     const week = goal.remoteWeek || goal.weekKey;
     const tasks = goal.tasks || [];
 
-    // A plain checkbox goal (no sub-items, not a tally).
-    if (tasks.length === 0 && !goal.tally && !!goal.completed !== !!goal.syncedCompleted) {
+    // A plain checkbox goal (no sub-items).
+    if (tasks.length === 0 && !!goal.completed !== !!goal.syncedCompleted) {
       const done = !!goal.completed;
       changes.push({
         kind: 'item',

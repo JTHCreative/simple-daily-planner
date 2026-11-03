@@ -40,8 +40,17 @@ const DEFAULT_STATE = {
 
 function reducer(state, action) {
   switch (action.type) {
-    case 'LOAD_DATA':
-      return { ...DEFAULT_STATE, ...action.payload };
+    case 'LOAD_DATA': {
+      const loadedState = { ...DEFAULT_STATE, ...action.payload };
+      // Tally-box goals are no longer pulled from Home Center; drop any
+      // imported earlier (unless daily tasks are linked to them).
+      loadedState.weeklyGoals = (loadedState.weeklyGoals || []).filter(
+        (g) =>
+          !(g.source === 'home-center' && g.tally) ||
+          (g.tasks || []).some((t) => t.linkedDailyTaskId)
+      );
+      return loadedState;
+    }
 
     case 'ADD_GROUP': {
       const createdDate = action.payload.createdDate || new Date().toISOString().split('T')[0];
@@ -911,9 +920,8 @@ function reducer(state, action) {
         weekKey: syncWeek,
         text: rg.text,
         icon: lg?.icon || rg.icon,
-        tally: rg.tally,
         tasks: mergeTasks(rg.tasks, lg?.tasks),
-        completed: rg.tally ? rg.completed : pickDone(rg.completed, lg),
+        completed: pickDone(rg.completed, lg),
         syncedCompleted: rg.completed,
       });
 

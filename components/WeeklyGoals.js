@@ -167,7 +167,7 @@ export default function WeeklyGoals({ selectedDate }) {
         const goalIcon = goal.icon || '🎯';
         const isUnlocked = !!unlockedGoals[goal.id];
         const isLocked = isPastWeek && !isUnlocked;
-        const isCheckableGoal = goal.source === 'home-center' && !hasTasks && !goal.tally;
+        const isCheckableGoal = goal.source === 'home-center' && !hasTasks;
 
         return (
           <View
@@ -227,11 +227,6 @@ export default function WeeklyGoals({ selectedDate }) {
                 {hasTasks && !isExpanded && (
                   <Text style={[styles.goalMeta, { color: colors.textMuted }]}>
                     {tasksDone}/{tasks.length} tasks
-                  </Text>
-                )}
-                {goal.tally && (
-                  <Text style={[styles.goalMeta, { color: colors.textMuted }]}>
-                    {goal.tally.done}/{goal.tally.target} this week
                   </Text>
                 )}
                 {goal.source === 'home-center' && (
