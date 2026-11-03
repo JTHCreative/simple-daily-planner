@@ -167,6 +167,7 @@ export default function WeeklyGoals({ selectedDate }) {
         const goalIcon = goal.icon || '🎯';
         const isUnlocked = !!unlockedGoals[goal.id];
         const isLocked = isPastWeek && !isUnlocked;
+        const isCheckableGoal = goal.source === 'home-center' && !hasTasks && !goal.tally;
 
         return (
           <View
@@ -182,9 +183,34 @@ export default function WeeklyGoals({ selectedDate }) {
               onLongPress={() => openEditGoal(goal)}
               delayLongPress={400}
             >
-              <View style={[styles.goalIcon, { backgroundColor: colors.primaryLight }]}>
-                <Text style={styles.goalIconText}>{goalIcon}</Text>
-              </View>
+              {isCheckableGoal ? (
+                // Home Center goal with no sub-items: the icon is its checkbox.
+                <TouchableOpacity
+                  style={[
+                    styles.goalIcon,
+                    {
+                      backgroundColor: goal.completed ? colors.primary : colors.primaryLight,
+                      borderWidth: 2,
+                      borderColor: goal.completed ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => {
+                    if (isLocked) return;
+                    dispatch({ type: 'TOGGLE_WEEKLY_GOAL', payload: goal.id });
+                  }}
+                  hitSlop={6}
+                >
+                  {goal.completed ? (
+                    <Text style={[styles.goalIconText, { color: '#fff', fontWeight: '700' }]}>✓</Text>
+                  ) : (
+                    <Text style={styles.goalIconText}>{goalIcon}</Text>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <View style={[styles.goalIcon, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={styles.goalIconText}>{goalIcon}</Text>
+                </View>
+              )}
               <View style={styles.goalInfo}>
                 <Text
                   style={[
